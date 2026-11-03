@@ -25,7 +25,7 @@ const VERSI_ROBLOX = [
 const SERVERS = [0, 1, 2].map((i) => ({ job_id: `job-0${i}`, playing: i, max_players: 30, ping: 40 + i, fps: 60 }));
 
 const stub = (density, target) => `<script>
-try { ${density ? `localStorage.setItem("cam.density", "${density}")` : `localStorage.removeItem("cam.density")`}; localStorage.setItem("wilayahOtomatis", "0"); } catch {}
+try { ${density ? `localStorage.setItem("cam.density", "${density}")` : `localStorage.removeItem("cam.density")`}; localStorage.setItem("wilayahOtomatis", "0"); localStorage.setItem("cam.versiTerakhir", "0.0.1"); } catch {}
 window.__GALAT__ = []; addEventListener("error", (e) => { window.__GALAT__.push(String(e.message)); navigator.sendBeacon("/galat", String(e.message) + " @" + (e.filename || "") + ":" + (e.lineno || "")); });
 addEventListener("unhandledrejection", (e) => window.__GALAT__.push("rejection: " + String(e.reason)));
 window.__fetch = 0; const _f = window.fetch; window.fetch = (...a) => { if (!String(a[0]).startsWith("/hasil")) window.__fetch++; return _f(...a); };
@@ -391,6 +391,7 @@ async function skenario({ penuh, versi, pulih }) {
       $$("button").find((b) => b.textContent.includes("View changelog")).click(); await tidur(300);
       cek("About: changelog dari bundel memuat versi ini", ($('[role="dialog"]')?.innerText || "").includes(versi));
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); await tidur(250);
+      cek(`Setelah update: Output "Updated to ${versi}" tepat sekali`, (teks().match(/Updated to /g) || []).length === 1 && teks().includes(`Updated to ${versi}.`));
       cek("Update: dicek otomatis sekali saat start (lewat updater, bukan fetch)", window.__cekUpdate === 1 && window.__fetch === 0, `${window.__cekUpdate}/${window.__fetch}`);
       tombol("Check for updates").click(); await tidur(300);
       cek("Update: tidak ada versi baru -> 'Up to date'", teks().includes("Up to date"));

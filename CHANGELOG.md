@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.10 — 3 Nov 2026
+
+- After an update is installed, Output says "Updated to …" once, so you know the update worked.
+
 ## 0.9.9 — 3 Nov 2026
 
 - **One-click updates.** About → Updates now installs new versions: it downloads the installer from GitHub Releases, checks its digital signature, installs it, and reopens the app. Accounts and settings are kept.

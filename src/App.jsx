@@ -20,6 +20,7 @@ import SavedServers from "./components/SavedServers";
 import FastFlags from "./components/FastFlags";
 import { Button, PanelTitle } from "./components/Primitives";
 import { api, tidur, ambilLinkCode, ambilAccessCode, ambilShareCode, samarkanRahasia } from "./lib/api";
+import { VERSI_APP } from "./lib/rilis";
 
 const RAM_HEMAT_MB = 512;
 
@@ -431,6 +432,18 @@ export default function App() {
       beriTahu(String(e), "salah");
     }
   };
+
+  useEffect(() => {
+    if (VERSI_APP === "dev") return;
+    let lama;
+    try {
+      lama = localStorage.getItem("cam.versiTerakhir");
+      localStorage.setItem("cam.versiTerakhir", VERSI_APP);
+    } catch {
+      return;
+    }
+    if (lama && lama !== VERSI_APP) beriTahu(`Updated to ${VERSI_APP}. See About → Changelog for what changed.`, "benar");
+  }, [beriTahu]);
 
   useEffect(() => {
     const h = setTimeout(() => {
