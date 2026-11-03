@@ -2,7 +2,7 @@
 
 A Windows desktop app for managing several Roblox accounts and launching them into the same game or server.
 
-Version 0.9.10. Built with [Tauri 2](https://tauri.app), React 19, Vite, and Tailwind CSS 4.
+Version 0.10.0. Built with [Tauri 2](https://tauri.app), React 19, Vite, and Tailwind CSS 4.
 
 ## Features
 

@@ -68,6 +68,47 @@ pub struct Account {
     pub hemat_ram_mb: u32,
     #[serde(default)]
     pub hemat_fps: u32,
+    #[serde(default)]
+    pub folder_id: Option<String>,
+}
+
+impl Account {
+    pub fn terapkan_preset(&mut self, p: &PresetHemat) {
+        self.hemat = p.hemat;
+        self.hemat_minimize = p.minimize;
+        self.hemat_ram_mb = if p.ram_mb == 0 { 0 } else { p.ram_mb.clamp(128, 4096) };
+        self.hemat_fps = crate::hemat::fps_hemat_sah(p.fps);
+    }
+
+    pub fn sesuai_preset(&self, p: &PresetHemat) -> bool {
+        let mut x = self.clone();
+        x.terapkan_preset(p);
+        (x.hemat, x.hemat_minimize, x.hemat_ram_mb, x.hemat_fps) == (self.hemat, self.hemat_minimize, self.hemat_ram_mb, self.hemat_fps)
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq)]
+pub struct PresetHemat {
+    #[serde(default)]
+    pub hemat: bool,
+    #[serde(default)]
+    pub fps: u32,
+    #[serde(default)]
+    pub ram_mb: u32,
+    #[serde(default)]
+    pub minimize: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq)]
+pub struct Folder {
+    pub id: String,
+    pub nama: String,
+    #[serde(default)]
+    pub warna: String,
+    #[serde(default)]
+    pub ikon: String,
+    #[serde(default)]
+    pub preset: Option<PresetHemat>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -112,6 +153,8 @@ pub struct Store {
     pub cap_tulis: Option<i32>,
     #[serde(default)]
     pub versi_alih: Option<(String, String)>,
+    #[serde(default)]
+    pub folder: Vec<Folder>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq)]
@@ -324,6 +367,125 @@ impl Store {
 
     pub fn storage_path() -> String {
         data_file().to_string_lossy().to_string()
+    }
+
+    pub fn pindah_akun(&mut self, ids: &[String], folder_id: Option<&str>) -> Result<usize, String> {
+        let preset = match folder_id {
+            Some(f) => self.folder.iter().find(|x| x.id == f).ok_or("Folder not found.")?.preset.clone(),
+            None => None,
+        };
+        let mut n = 0;
+        for a in self.accounts.iter_mut().filter(|a| ids.contains(&a.id)) {
+            a.folder_id = folder_id.map(str::to_string);
+            if let Some(p) = &preset {
+                a.terapkan_preset(p);
+            }
+            n += 1;
+        }
+        Ok(n)
+    }
+
+    pub fn hapus_folder(&mut self, id: &str) -> Result<usize, String> {
+        let awal = self.folder.len();
+        self.folder.retain(|f| f.id != id);
+        if self.folder.len() == awal {
+            return Err("Folder not found.".into());
+        }
+        let mut n = 0;
+        for a in self.accounts.iter_mut().filter(|a| a.folder_id.as_deref() == Some(id)) {
+            a.folder_id = None;
+            n += 1;
+        }
+        Ok(n)
+    }
+
+    pub fn urutkan_folder(&mut self, ids: &[String]) {
+        let mut baru: Vec<Folder> = ids.iter().filter_map(|i| self.folder.iter().find(|f| &f.id == i).cloned()).collect();
+        for f in &self.folder {
+            if !ids.contains(&f.id) {
+                baru.push(f.clone());
+            }
+        }
+        self.folder = baru;
+    }
+
+    pub fn terapkan_preset_folder(&mut self, id: &str) -> usize {
+        let Some(p) = self.folder.iter().find(|f| f.id == id).and_then(|f| f.preset.clone()) else { return 0 };
+        let mut n = 0;
+        for a in self.accounts.iter_mut().filter(|a| a.folder_id.as_deref() == Some(id)) {
+            if !a.sesuai_preset(&p) {
+                a.terapkan_preset(&p);
+                n += 1;
+            }
+        }
+        n
+    }
+}
+
+pub fn nama_folder_sah(nama: &str) -> Result<String, String> {
+    let n: String = nama.trim().chars().take(40).collect();
+    if n.is_empty() {
+        return Err("Give the folder a name.".into());
+    }
+    Ok(n)
+}
+
+#[cfg(test)]
+mod tes_folder {
+    use super::*;
+
+    fn akun(id: &str, folder: Option<&str>) -> Account {
+        Account { id: id.into(), alias: id.into(), folder_id: folder.map(str::to_string), ..Default::default() }
+    }
+
+    fn store() -> Store {
+        let mut s = Store::default();
+        s.folder = vec![
+            Folder { id: "t".into(), nama: "Farming".into(), preset: Some(PresetHemat { hemat: true, fps: 5, ram_mb: 512, minimize: false }), ..Default::default() },
+            Folder { id: "j".into(), nama: "Boosting".into(), ..Default::default() },
+        ];
+        s.accounts = vec![akun("a", None), akun("b", Some("j")), akun("c", Some("t"))];
+        s
+    }
+
+    #[test]
+    fn berkas_lama_tanpa_folder_tetap_terbaca() {
+        let s: Store = serde_json::from_str(r#"{"accounts":[{"id":"x","alias":"X","username":"u","display_name":"d","user_id":1,"robux":0,"premium":false,"avatar_url":"","created":0,"last_launched":0,"cookie_enc":"e","browser_tracker_id":1,"last_error":""}]}"#).unwrap();
+        assert!(s.folder.is_empty());
+        assert_eq!(s.accounts[0].folder_id, None);
+    }
+
+    #[test]
+    fn pindah_ke_folder_berpreset_memasang_saver() {
+        let mut s = store();
+        assert_eq!(s.pindah_akun(&["a".into()], Some("t")).unwrap(), 1);
+        let a = s.find("a").unwrap();
+        assert_eq!((a.folder_id.as_deref(), a.hemat, a.hemat_fps, a.hemat_ram_mb), (Some("t"), true, 5, 512));
+        s.pindah_akun(&["a".into()], Some("j")).unwrap();
+        assert!(s.find("a").unwrap().hemat);
+        assert!(s.pindah_akun(&["a".into()], Some("tidak-ada")).is_err());
+        s.pindah_akun(&["a".into()], None).unwrap();
+        assert_eq!(s.find("a").unwrap().folder_id, None);
+    }
+
+    #[test]
+    fn hapus_folder_menjaga_akun() {
+        let mut s = store();
+        assert_eq!(s.hapus_folder("j").unwrap(), 1);
+        assert_eq!(s.accounts.len(), 3);
+        assert_eq!(s.find("b").unwrap().folder_id, None);
+        assert!(s.hapus_folder("j").is_err());
+    }
+
+    #[test]
+    fn urutkan_dan_terapkan_preset() {
+        let mut s = store();
+        s.urutkan_folder(&["j".into()]);
+        assert_eq!(s.folder.iter().map(|f| f.id.as_str()).collect::<Vec<_>>(), ["j", "t"]);
+        assert_eq!(s.terapkan_preset_folder("t"), 1);
+        assert_eq!(s.terapkan_preset_folder("t"), 0);
+        assert!(nama_folder_sah("   ").is_err());
+        assert_eq!(nama_folder_sah("  Farming  ").unwrap(), "Farming");
     }
 }
 

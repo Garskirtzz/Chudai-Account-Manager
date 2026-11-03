@@ -33,6 +33,9 @@ window.__mode = { cari: "ada", simpan: "ok" }; window.__luncur = [];
 window.__AKUN = ${JSON.stringify(AKUN)}; window.__hemat = [];
 window.__target = ${JSON.stringify(target || null)}; window.__simpanTarget = 0; window.__saved = []; window.__login = [];
 window.__update = null; window.__pasang = 0; window.__cekUpdate = 0;
+window.__folder = []; window.__nFolder = 0; window.__pindah = [];
+window.__salinPreset = (x, p) => { x.hemat = p.hemat; x.hemat_minimize = p.minimize; x.hemat_ram_mb = p.ram_mb; x.hemat_fps = p.fps; };
+window.__pasangPreset = (id) => { const f = window.__folder.find((x) => x.id === id); let n = 0; if (f && f.preset) for (const x of window.__AKUN) if (x.folder_id === id) { window.__salinPreset(x, f.preset); n++; } return n; };
 let klien = 0, joinPada = Infinity; window.__setKlien = (n) => { klien = n; };
 const tunda = (ms) => new Promise((r) => setTimeout(r, ms));
 window.__TAURI__ = { core: { invoke: async (c, a) => {
@@ -48,6 +51,13 @@ window.__TAURI__ = { core: { invoke: async (c, a) => {
   if (c === "hapus_server_tersimpan") { window.__saved = window.__saved.filter((x) => x.id !== a.id); return JSON.parse(JSON.stringify(window.__saved)); }
   if (c === "login_browser") { window.__login.push(a); await tunda(600); if (window.__mode.login === "batal") throw "The login window was closed before signing in."; return "UjiLogin added from the Roblox login."; }
   if (c === "tutup_login_browser") { window.__mode.login = "batal"; return null; }
+  if (c === "daftar_folder") return JSON.parse(JSON.stringify(window.__folder));
+  if (c === "buat_folder") { const f = { id: "f" + (++window.__nFolder), nama: a.nama.trim(), warna: a.warna, ikon: a.ikon, preset: null }; window.__folder.push(f); return JSON.parse(JSON.stringify(f)); }
+  if (c === "ubah_folder") { const i = window.__folder.findIndex((f) => f.id === a.folder.id); window.__folder[i] = JSON.parse(JSON.stringify(a.folder)); return window.__pasangPreset(a.folder.id); }
+  if (c === "hapus_folder") { window.__folder = window.__folder.filter((f) => f.id !== a.id); let n = 0; for (const x of window.__AKUN) if (x.folder_id === a.id) { x.folder_id = null; n++; } return n; }
+  if (c === "urutkan_folder") { window.__folder = a.ids.map((i) => window.__folder.find((f) => f.id === i)); return null; }
+  if (c === "pindah_akun") { const f = window.__folder.find((x) => x.id === a.folderId); let n = 0; for (const x of window.__AKUN) if (a.ids.includes(x.id)) { x.folder_id = a.folderId; if (f && f.preset) window.__salinPreset(x, f.preset); n++; } window.__pindah.push(a); return n; }
+  if (c === "terapkan_preset_folder") return window.__pasangPreset(a.id);
   if (c === "set_hemat_akun") { window.__hemat.push(a); const x = window.__AKUN.find((k) => k.id === a.id);
     if (x) { x.hemat = a.hemat; x.hemat_minimize = a.minimize; x.hemat_ram_mb = a.ramMb; x.hemat_fps = a.fps; } return null; }
   if (c === "cari_game") { await tunda(300);
@@ -316,6 +326,91 @@ async function skenario({ penuh, versi, pulih }) {
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); await tidur(250);
       $('[aria-label^="Select Akun5"]').click(); $('[aria-label^="Select Akun6"]').click(); await tidur(100);
     });
+    await bagian('Folder akun', async () => {
+      await nav("akun");
+      const pilihNilai = (el, v) => { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(el, v); el.dispatchEvent(new Event("change", { bubbles: true })); };
+      const explorer = () => $$("aside")[0];
+      const dlg = () => $('[role="dialog"]');
+      cek("Folder: tanpa folder, Explorer tetap daftar datar (tanpa 'Ungrouped')", !explorer().innerText.includes("Ungrouped") && !$('[aria-label="Folder filter"]'));
+      $('button[aria-label="New folder"]').click(); await tidur(350);
+      cek("Folder: dialog 'New folder' terbuka", (dlg()?.innerText || "").includes("New folder"));
+      isi($("#folder-nama"), "Farming");
+      $('[role="radio"][aria-label="Green"]').click(); $('[role="radio"][aria-label="Bot"]').click();
+      $('[aria-label="Resource saver preset"]').click(); await tidur(150);
+      pilihNilai($('[aria-label="Preset: FPS"]'), "5");
+      tombol("Create folder", dlg()).click();
+      await tunggu(() => window.__folder.length === 1 && window.__folder[0].preset, 2000);
+      const f1 = window.__folder[0] || {};
+      cek("Folder: tersimpan dengan nama/warna/ikon/preset", f1.nama === "Farming" && f1.warna === "hijau" && f1.ikon === "bot" && f1.preset?.hemat === true && f1.preset?.fps === 5 && f1.preset?.ram_mb === 512, JSON.stringify(f1));
+      await tunggu(() => !dlg(), 1500);
+      await tunggu(() => !!$('[aria-label="Folder filter"]'), 1500);
+      cek("Folder: chip filter muncul (All / Farming 0 / Ungrouped 9)", !!$('[data-chip="semua"]') && $(`[data-chip="${f1.id}"]`)?.innerText.replace(/\s+/g, " ").includes("Farming 0") && $('[data-chip="tanpa"]')?.innerText.includes("9"));
+      const barisGrid = (al) => $$("tbody tr").find((tr) => tr.textContent.includes(al));
+      barisGrid("Akun3").querySelector('button[aria-label^="More actions"]').click(); await tidur(200);
+      $$('[role="menuitem"]').find((b) => b.textContent.trim() === "Farming").click();
+      await tunggu(() => window.__AKUN.find((x) => x.id === "a3").folder_id === f1.id, 2000);
+      const a3 = window.__AKUN.find((x) => x.id === "a3");
+      cek("Folder: Move to lewat menu + preset saver terpasang", a3.folder_id === f1.id && a3.hemat === true && a3.hemat_fps === 5, JSON.stringify(a3));
+      await tunggu(() => document.body.innerText.includes("Saver preset applied"), 2000);
+      cek("Folder: Output menyebut preset diterapkan", document.body.innerText.includes("Moved Akun3 to Farming. Saver preset applied"));
+      await tidur(200);
+      const barisEx = (al) => [...explorer().querySelectorAll('[role="option"]')].find((d) => d.textContent.includes(al));
+      const dt = new DataTransfer();
+      barisEx("Akun4").dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+      const sasaran = explorer().querySelector(`[data-folder="${f1.id}"]`).parentElement;
+      sasaran.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt }));
+      sasaran.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
+      await tunggu(() => window.__AKUN.find((x) => x.id === "a4").folder_id === f1.id, 2000);
+      cek("Folder: drag-and-drop akun ke folder di Explorer", window.__AKUN.find((x) => x.id === "a4").folder_id === f1.id, JSON.stringify(window.__pindah.at(-1)));
+      await tidur(300);
+      barisGrid("Akun3").querySelector("td:nth-child(2)").click(); await tidur(200);
+      cek("Folder: Properties menampilkan Folder = Farming + 'Follows the Farming preset'", $('select[aria-label="Folder"]')?.value === f1.id && props().innerText.includes("Follows the Farming preset"));
+      pilihNilai($('select[aria-label="Folder"]'), "");
+      await tunggu(() => window.__AKUN.find((x) => x.id === "a3").folder_id === null, 2000);
+      cek("Folder: pindah lewat pilihan Folder di Properties (ke Ungrouped)", window.__AKUN.find((x) => x.id === "a3").folder_id === null);
+      await tidur(300);
+      pilihNilai($('select[aria-label="Folder"]'), f1.id);
+      await tunggu(() => window.__AKUN.find((x) => x.id === "a3").folder_id === f1.id, 2000);
+      await tidur(300);
+      const cbFolder = () => $('[aria-label="Select all in Farming"]');
+      cek("Folder: Explorer menampilkan Farming (2) dan Ungrouped", explorer().innerText.includes("Farming") && explorer().innerText.includes("Ungrouped"));
+      cbFolder().click(); await tidur(200);
+      cek("Folder: centang folder memilih semua anggota", $('[aria-label="Select Akun3"]')?.getAttribute("aria-checked") === "true" && $$('[aria-label^="Select Akun4"]')[0]?.getAttribute("aria-checked") === "true");
+      cbFolder().click(); await tidur(200);
+      cek("Folder: centang lagi melepas semua anggota", cbFolder().getAttribute("aria-checked") === "false");
+      $(`[data-chip="${f1.id}"]`).click(); await tidur(250);
+      cek("Folder: filter chip -> grid hanya anggota folder", $$("tbody tr").length === 2, $$("tbody tr").length);
+      $('[data-chip="semua"]').click(); await tidur(250);
+      cek("Folder: chip All -> semua akun lagi", $$("tbody tr").length === 9, $$("tbody tr").length);
+      explorer().querySelector(`[data-folder="${f1.id}"]`).dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      await tidur(150);
+      const inp = $('input[aria-label="Folder name"]');
+      isi(inp, "Farming AFK"); tekan(inp, "Enter");
+      await tunggu(() => window.__folder[0]?.nama === "Farming AFK", 2000);
+      cek("Folder: ganti nama di tempat (klik ganda + Enter)", window.__folder[0]?.nama === "Farming AFK");
+      $('button[aria-label="New folder"]').click(); await tidur(350);
+      isi($("#folder-nama"), "Boosting"); tombol("Create folder", dlg()).click();
+      await tunggu(() => window.__folder.length === 2, 2000); await tidur(300);
+      $('button[aria-label="Boosting options"]').click(); await tidur(200);
+      $$('[role="menuitem"]').find((b) => b.textContent.includes("Move up")).click();
+      await tunggu(() => window.__folder[0]?.nama === "Boosting", 2000);
+      cek("Folder: Move up mengubah urutan", window.__folder.map((f) => f.nama).join() === "Boosting,Farming AFK", window.__folder.map((f) => f.nama).join());
+      await tidur(300);
+      $('button[aria-label="Farming AFK options"]').click(); await tidur(200);
+      $$('[role="menuitem"]').find((b) => b.textContent.includes("Delete folder")).click(); await tidur(300);
+      cek("Folder: hapus minta konfirmasi + menyebut akun tetap", (dlg()?.innerText || "").includes("stay in the app and move to Ungrouped"));
+      tombol("Delete folder", dlg()).click();
+      await tunggu(() => window.__folder.length === 1, 2000);
+      cek("Folder: terhapus, akunnya tetap ada & jadi Ungrouped", window.__AKUN.length === 9 && window.__AKUN.find((x) => x.id === "a3").folder_id === null);
+      await tidur(300);
+      tombol("Add Account").click(); await tidur(400);
+      cek("Folder: Add Account punya pilihan folder", !!$("#tambah-folder") && [...$("#tambah-folder").options].map((o) => o.textContent).join("|").includes("Boosting"));
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); await tidur(300);
+      $('button[aria-label="Boosting options"]').click(); await tidur(200);
+      $$('[role="menuitem"]').find((b) => b.textContent.includes("Delete folder")).click(); await tidur(300);
+      tombol("Delete folder", dlg()).click();
+      await tunggu(() => window.__folder.length === 0, 2000); await tidur(300);
+    });
     await bagian('Log in with browser', async () => {
       await nav("akun");
       tombol("Add Account").click(); await tidur(400);
@@ -324,7 +419,7 @@ async function skenario({ penuh, versi, pulih }) {
       isi($("#tambah-alias"), "AliasLogin");
       tombol("Log in with browser", dlg()).click(); await tidur(150);
       cek("Login: menunggu -> tombol nonaktif + 'Cancel login' + petunjuk", dlg().innerText.includes("Waiting for login…") && !!tombol("Cancel login", dlg()) && dlg().innerText.includes("Do not press Log Out"));
-      cek("Login: alias ikut dikirim, cookie TIDAK lewat UI", window.__login[0]?.alias === "AliasLogin" && Object.keys(window.__login[0] || {}).join() === "alias", JSON.stringify(window.__login[0]));
+      cek("Login: alias (+ folder) ikut dikirim, cookie TIDAK lewat UI", window.__login[0]?.alias === "AliasLogin" && Object.keys(window.__login[0] || {}).sort().join() === "alias,folderId" && window.__login[0].folderId === null, JSON.stringify(window.__login[0]));
       cek("Login: dialog tidak bisa ditutup dengan Esc selama menunggu", (document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })), !!dlg()));
       await tunggu(() => !dlg(), 3000);
       cek("Login: sukses -> dialog tertutup + Output", !dlg() && document.body.innerText.includes("UjiLogin added from the Roblox login."));

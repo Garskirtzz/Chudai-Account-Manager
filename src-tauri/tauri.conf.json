@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Chudai Account Manager",
-  "version": "0.9.10",
+  "version": "0.10.0",
   "identifier": "com.chudai.accountmanager",
   "build": {
     "frontendDist": "../dist",

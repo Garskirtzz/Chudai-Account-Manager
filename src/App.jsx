@@ -17,6 +17,8 @@ import AccountTools from "./components/AccountTools";
 import ThemeEditor, { pasangTema } from "./components/ThemeEditor";
 import AboutView from "./components/AboutView";
 import SavedServers from "./components/SavedServers";
+import FolderModal from "./components/FolderModal";
+import { cocokFilter, folderAkun, bacaLokal, tulisLokal, labelPreset, IkonFolder, DND_AKUN } from "./lib/folder";
 import FastFlags from "./components/FastFlags";
 import { Button, PanelTitle } from "./components/Primitives";
 import { api, tidur, ambilLinkCode, ambilAccessCode, ambilShareCode, samarkanRahasia } from "./lib/api";
@@ -38,6 +40,13 @@ export default function App() {
   const [modalBuka, setModalBuka] = useState(false);
   const [fokusId, setFokusId] = useState(null);
   const [tampilan, setTampilan] = useState("akun");
+  const [folder, setFolder] = useState([]);
+  const [filterFolder, setFilterFolderMentah] = useState(() => bacaLokal("cam.filterFolder", "semua"));
+  const setFilterFolder = useCallback((v) => {
+    setFilterFolderMentah(v);
+    tulisLokal("cam.filterFolder", v);
+  }, []);
+  const [dialogFolder, setDialogFolder] = useState(null);
   const [updateAwal, setUpdateAwal] = useState(null);
   const [riwayat, setRiwayat] = useState([]);
   const [pilihanLuar, setPilihanLuar] = useState(null);
@@ -105,6 +114,15 @@ export default function App() {
     }
   }, [beriTahu]);
 
+  const muatFolder = useCallback(async () => {
+    try {
+      const d = await api.daftarFolder();
+      setFolder(Array.isArray(d) ? d : []);
+    } catch (e) {
+      beriTahu(`Couldn’t load folders: ${e}`, "salah");
+    }
+  }, [beriTahu]);
+
   const cobaMuatLagi = useCallback(() => {
     setStatusMuat("memuat");
     muat();
@@ -157,6 +175,7 @@ export default function App() {
       } catch (e) {
         beriTahu(`Couldn’t load saved servers: ${e}`, "salah");
       }
+      await muatFolder();
       const opsional = async (nama, fn, pasang) => {
         try {
           const v = await fn();
@@ -228,14 +247,19 @@ export default function App() {
   const terlihat = useMemo(() => {
     const k = cari.trim().toLowerCase();
     if (!k) return akun;
+    const namaFolder = (a) => folder.find((f) => f.id === folderAkun(a, folder))?.nama.toLowerCase() || "";
     return akun.filter(
       (a) =>
         a.alias.toLowerCase().includes(k) ||
         a.username.toLowerCase().includes(k) ||
         a.display_name.toLowerCase().includes(k) ||
-        String(a.user_id).includes(k)
+        String(a.user_id).includes(k) ||
+        namaFolder(a).includes(k)
     );
-  }, [akun, cari]);
+  }, [akun, cari, folder]);
+
+  const filterSah = filterFolder === "semua" || filterFolder === "tanpa" || folder.some((f) => f.id === filterFolder) ? filterFolder : "semua";
+  const terlihatGrid = useMemo(() => terlihat.filter((a) => cocokFilter(a, filterSah, folder)), [terlihat, filterSah, folder]);
 
   const toggle = useCallback(
     (id) =>
@@ -248,14 +272,113 @@ export default function App() {
   );
 
   const semuaTerpilih =
-    terlihat.length > 0 && terlihat.every((a) => dipilih.has(a.id));
+    terlihatGrid.length > 0 && terlihatGrid.every((a) => dipilih.has(a.id));
 
   const toggleSemua = () =>
     setDipilih((s) => {
       const n = new Set(s);
-      for (const a of terlihat) semuaTerpilih ? n.delete(a.id) : n.add(a.id);
+      for (const a of terlihatGrid) semuaTerpilih ? n.delete(a.id) : n.add(a.id);
       return n;
     });
+
+  const namaFolder = (id) => (id ? folder.find((f) => f.id === id)?.nama || "folder" : "Ungrouped");
+
+  const pindahAkun = async (ids, folderId) => {
+    const nyata = ids.filter((id) => akun.some((a) => a.id === id && folderAkun(a, folder) !== folderId));
+    if (!nyata.length) return;
+    try {
+      const n = await api.pindahAkun(nyata, folderId);
+      await muat();
+      const f = folder.find((x) => x.id === folderId);
+      const siapa = n === 1 ? akun.find((a) => a.id === nyata[0])?.alias || "1 account" : `${n} accounts`;
+      beriTahu(`Moved ${siapa} to ${namaFolder(folderId)}.${f?.preset ? ` Saver preset applied (${labelPreset(f.preset)}).` : ""}`, "benar");
+    } catch (e) {
+      beriTahu(String(e), "salah");
+    }
+  };
+
+  const simpanFolder = async (data) => {
+    try {
+      if (data.id) {
+        const n = await api.ubahFolder(data);
+        beriTahu(`Folder "${data.nama}" saved.${n ? ` Saver preset applied to ${n} account${n === 1 ? "" : "s"}.` : ""}`, "benar");
+      } else {
+        const f = await api.buatFolder(data.nama, data.warna, data.ikon);
+        if (data.preset) await api.ubahFolder({ ...f, preset: data.preset });
+        beriTahu(`Folder "${f.nama}" created. Drag accounts onto it, or use Move to folder.`, "benar");
+      }
+      await muatFolder();
+      await muat();
+      return true;
+    } catch (e) {
+      beriTahu(String(e), "salah");
+      return false;
+    }
+  };
+
+  const folderAksi = {
+    baru: () => setDialogFolder({ folder: null }),
+    edit: (f) => setDialogFolder({ folder: f }),
+    filter: (id) => {
+      setFilterFolder(filterSah === id ? "semua" : id);
+      setTampilan("akun");
+    },
+    ubahNama: (f, nama) => simpanFolder({ ...f, nama }),
+    pilihSemua: (anggota, lepas) =>
+      setDipilih((s) => {
+        const n = new Set(s);
+        for (const a of anggota) lepas ? n.delete(a.id) : n.add(a.id);
+        return n;
+      }),
+    luncur: (anggota, label) => {
+      setDipilih(new Set(anggota.map((a) => a.id)));
+      beriTahu(`Launching folder ${label} (${anggota.length} account${anggota.length === 1 ? "" : "s"}).`);
+      luncurkanDaftar(anggota, "folder");
+    },
+    geser: async (f, arah) => {
+      const ids = folder.map((x) => x.id);
+      const i = ids.indexOf(f.id);
+      const j = i + arah;
+      if (i < 0 || j < 0 || j >= ids.length) return;
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+      try {
+        await api.urutkanFolder(ids);
+        await muatFolder();
+      } catch (e) {
+        beriTahu(String(e), "salah");
+      }
+    },
+    hapus: (f, jumlah) =>
+      setKonfirmasi({
+        judul: `Delete folder ${f.nama}?`,
+        pesan: jumlah
+          ? `Its ${jumlah} account${jumlah === 1 ? "" : "s"} stay in the app and move to Ungrouped. Their resource saver settings are kept.`
+          : "The folder is empty. No account is affected.",
+        labelYa: "Delete folder",
+        bahaya: true,
+        aksi: async () => {
+          try {
+            await api.hapusFolder(f.id);
+            if (filterSah === f.id) setFilterFolder("semua");
+            await muatFolder();
+            await muat();
+            beriTahu(`Folder "${f.nama}" deleted.`);
+          } catch (e) {
+            beriTahu(String(e), "salah");
+          }
+        },
+      }),
+  };
+
+  const terapkanPresetFolder = async (f) => {
+    try {
+      const n = await api.terapkanPresetFolder(f.id);
+      await muat();
+      beriTahu(n ? `${f.nama} preset applied to ${n} account${n === 1 ? "" : "s"}.` : `Every account in ${f.nama} already matches its preset.`, "benar");
+    } catch (e) {
+      beriTahu(String(e), "salah");
+    }
+  };
 
   const segarkan = async (id) => {
     try {
@@ -469,9 +592,9 @@ export default function App() {
     }
   };
 
-  const tambahAkun = async (cookie, alias) => {
+  const tambahAkun = async (cookie, alias, folderId) => {
     try {
-      const a = await api.tambahAkun(cookie, alias);
+      const a = await api.tambahAkun(cookie, alias, folderId);
       await muat();
       beriTahu(`${a.username} added.`, "benar");
       return true;
@@ -801,7 +924,7 @@ export default function App() {
     setStatusLuncur((s) => s && "Cancelling — finishing the current step…");
   }, []);
 
-  const sebagian = dipilih.size > 0 && !semuaTerpilih;
+  const sebagian = terlihatGrid.some((a) => dipilih.has(a.id)) && !semuaTerpilih;
   const fokus = akun.find((a) => a.id === fokusId) || null;
 
   aksiRef.current = {
@@ -858,15 +981,19 @@ export default function App() {
           setCari={setCari}
           jumlahRiwayat={riwayat.length}
           sembunyikanUsername={sembunyikanUsername}
+          folder={folder}
+          filterFolder={tampilan === "akun" ? filterSah : null}
+          folderAksi={folderAksi}
+          onPindah={pindahAkun}
         />
 
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <section className="flex min-h-0 flex-1 flex-col bg-app-bg">
             <PanelTitle
               kanan={
-                tampilan === "akun" && cari ? (
+                tampilan === "akun" && (cari || filterSah !== "semua") ? (
                   <span className="font-normal text-dim">
-                    {terlihat.length} of {akun.length} shown
+                    {terlihatGrid.length} of {akun.length} shown
                   </span>
                 ) : null
               }
@@ -983,13 +1110,34 @@ export default function App() {
                       </Button>
                     }
                   />
-                ) : terlihat.length === 0 ? (
-                  <Kosong
-                    ikon={SearchX}
-                    judul={`No account matches "${cari}"`}
-                    teks="The filter checks alias, username, display name and user ID. Clear it in the Explorer to see every account."
-                  />
                 ) : (
+                  <>
+                    {folder.length > 0 && (
+                      <ChipFolder
+                        folder={folder}
+                        akun={terlihat}
+                        filter={filterSah}
+                        onFilter={setFilterFolder}
+                        onBaru={folderAksi.baru}
+                        onPindah={pindahAkun}
+                      />
+                    )}
+                    {terlihatGrid.length === 0 ? (
+                      filterSah !== "semua" && !cari ? (
+                        <Kosong
+                          ikon={Users}
+                          judul={`${namaFolder(filterSah === "tanpa" ? null : filterSah)} is empty`}
+                          teks="Drag accounts onto this folder in the Explorer, or use Move to folder in an account's menu."
+                          aksi={<Button variant="secondary" onClick={() => setFilterFolder("semua")}>Show all accounts</Button>}
+                        />
+                      ) : (
+                        <Kosong
+                          ikon={SearchX}
+                          judul={`No account matches "${cari}"`}
+                          teks="The filter checks alias, username, display name, user ID and folder name. Clear it in the Explorer to see every account."
+                        />
+                      )
+                    ) : (
                   <>
                     {klienAsing > 0 && (
                       <div className="strip-warn border-b border-line px-3 py-1.5 text-body">
@@ -998,7 +1146,9 @@ export default function App() {
                       </div>
                     )}
                     <AccountsGrid
-                      akun={terlihat}
+                      akun={terlihatGrid}
+                      folder={folder}
+                      onPindah={pindahAkun}
                       dipilih={dipilih}
                       semuaTerpilih={semuaTerpilih}
                       sebagian={sebagian}
@@ -1012,6 +1162,8 @@ export default function App() {
                       sedangPerbarui={sedangPerbarui}
                       aksi={aksiStabil}
                     />
+                  </>
+                    )}
                   </>
                 )}
               </main>
@@ -1048,9 +1200,12 @@ export default function App() {
                   fps: () => setFpsAkun(fokus),
                   hemat: (ubah) => ubahHemat([fokus], ubah),
                   hapus: () => hapus(fokus),
+                  pindah: (folderId) => pindahAkun([fokus.id], folderId),
+                  terapkanPreset: (f) => terapkanPresetFolder(f),
                 }
               : {}
           }
+          folder={folder}
         />
       </div>
 
@@ -1060,16 +1215,28 @@ export default function App() {
         akunDipilih={akun.filter((a) => dipilih.has(a.id))}
         beriTahu={beriTahu}
         onHemat={ubahHemat}
+        folder={folder}
+        onPindah={pindahAkun}
+      />
+
+      <FolderModal
+        buka={!!dialogFolder}
+        folder={dialogFolder?.folder || null}
+        jumlahAnggota={dialogFolder?.folder ? akun.filter((a) => a.folder_id === dialogFolder.folder.id).length : 0}
+        onTutup={() => setDialogFolder(null)}
+        onSimpan={simpanFolder}
       />
 
       <AddAccountModal
         buka={modalBuka}
         onTutup={() => setModalBuka(false)}
         onSimpan={tambahAkun}
-        onLogin={async (alias) => {
+        folder={folder}
+        folderAwal={folder.some((f) => f.id === filterSah) ? filterSah : ""}
+        onLogin={async (alias, folderId) => {
           try {
             beriTahu("Waiting for the Roblox login window…");
-            beriTahu(await api.loginBrowser(alias), "benar");
+            beriTahu(await api.loginBrowser(alias, folderId), "benar");
             await muat();
             return true;
           } catch (e) {
@@ -1105,6 +1272,52 @@ export default function App() {
           k?.aksi?.();
         }}
       />
+    </div>
+  );
+}
+
+function ChipFolder({ folder, akun, filter, onFilter, onBaru, onPindah }) {
+  const [sasaran, setSasaran] = useState(null);
+  const hitung = (id) => akun.filter((a) => folderAkun(a, folder) === id).length;
+  const chip = (id, label, jumlah, f, dropKe) => (
+    <button
+      key={id}
+      type="button"
+      data-chip={id}
+      aria-pressed={filter === id}
+      onClick={() => onFilter(id)}
+      onDragOver={dropKe === undefined ? undefined : (e) => {
+        if (!e.dataTransfer.types.includes(DND_AKUN)) return;
+        e.preventDefault();
+        setSasaran(id);
+      }}
+      onDragLeave={() => setSasaran((s) => (s === id ? null : s))}
+      onDrop={dropKe === undefined ? undefined : (e) => {
+        setSasaran(null);
+        const d = e.dataTransfer.getData(DND_AKUN);
+        if (!d) return;
+        e.preventDefault();
+        try { onPindah(JSON.parse(d), dropKe); } catch {  }
+      }}
+      className={
+        "flex h-6 flex-none items-center gap-1.5 border px-2 text-meta " +
+        (filter === id ? "border-accent-hi bg-accent text-on-accent" : "border-line bg-well text-ink hover:border-faint") +
+        (sasaran === id ? " outline outline-1 outline-[var(--color-ink)]" : "")
+      }
+    >
+      {f !== undefined && (f ? <IkonFolder f={f} size={12} className={filter === id ? "!text-on-accent" : ""} /> : null)}
+      <span className="max-w-[140px] truncate">{label}</span>
+      <span className={filter === id ? "text-on-accent/80" : "text-dim"}>{jumlah}</span>
+    </button>
+  );
+  return (
+    <div role="toolbar" aria-label="Folder filter" className="flex flex-none flex-wrap items-center gap-1 border-b border-line px-2 py-1.5">
+      {chip("semua", "All", akun.length)}
+      {folder.map((f) => chip(f.id, f.nama, hitung(f.id), f, f.id))}
+      {chip("tanpa", "Ungrouped", hitung(null), null, null)}
+      <button type="button" onClick={onBaru} className="btn btn-ghost btn-sm h-6 gap-1 px-1.5 text-meta font-normal" title="New folder">
+        + New folder
+      </button>
     </div>
   );
 }

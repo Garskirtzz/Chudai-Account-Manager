@@ -23,8 +23,8 @@ export function samarkanRahasia(teks) {
 
 export const api = {
   daftarAkun: () => invoke("daftar_akun"),
-  tambahAkun: (cookie, alias) => invoke("tambah_akun", { cookie, alias }),
-  loginBrowser: (alias) => invoke("login_browser", { alias }),
+  tambahAkun: (cookie, alias, folderId) => invoke("tambah_akun", { cookie, alias, folderId: folderId || null }),
+  loginBrowser: (alias, folderId) => invoke("login_browser", { alias, folderId: folderId || null }),
   tutupLoginBrowser: () => invoke("tutup_login_browser"),
   hapusAkun: (id) => invoke("hapus_akun", { id }),
   ubahAlias: (id, alias) => invoke("ubah_alias", { id, alias }),
@@ -45,6 +45,13 @@ export const api = {
   setHematAkun: (id, hemat, minimize, ramMb, fps) =>
     invoke("set_hemat_akun", { id, hemat, minimize, ramMb, fps }),
   jendelaHemat: (id) => invoke("jendela_hemat", { id }),
+  daftarFolder: () => invoke("daftar_folder"),
+  buatFolder: (nama, warna, ikon) => invoke("buat_folder", { nama, warna, ikon }),
+  ubahFolder: (folder) => invoke("ubah_folder", { folder }),
+  hapusFolder: (id) => invoke("hapus_folder", { id }),
+  urutkanFolder: (ids) => invoke("urutkan_folder", { ids }),
+  pindahAkun: (ids, folderId) => invoke("pindah_akun", { ids, folderId: folderId || null }),
+  terapkanPresetFolder: (id) => invoke("terapkan_preset_folder", { id }),
   cekUpdate: () => invoke("cek_update"),
   pasangUpdate: () => invoke("pasang_update"),
   statusUpdate: () => invoke("status_update"),

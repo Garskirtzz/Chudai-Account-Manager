@@ -4,6 +4,7 @@ import { Category, Prop, PanelTitle, IconButton, StatusBadge, Checkbox, Dropdown
 import { jenisServer } from "./SavedServers";
 import GamePicker from "./GamePicker";
 import { waktuRelatif, samarkan, FPS_SAVER } from "../lib/api";
+import { folderAkun, labelPreset, sesuaiPreset, IkonFolder } from "../lib/folder";
 
 export default function LaunchBar({
   nilai,
@@ -23,6 +24,7 @@ export default function LaunchBar({
   pidFokus,
   sembunyikanUsername,
   aksiAkun,
+  folder = [],
 }) {
   const ubah = (k) => (e) => setNilai({ ...nilai, [k]: e.target.value });
   const [tersimpanBaru, setTersimpanBaru] = useState(false);
@@ -206,6 +208,20 @@ export default function LaunchBar({
             <Prop nama="Last launched">
               <span className="truncate">{waktuRelatif(fokus.last_launched) || "Never launched"}</span>
             </Prop>
+            {folder.length > 0 && (
+              <Prop nama="Folder" title="Moving an account into a folder with a resource saver preset applies that preset.">
+                <IkonFolder f={folder.find((f) => f.id === folderAkun(fokus, folder)) || null} size={12} />
+                <select
+                  className="cell min-w-0 flex-1"
+                  value={folderAkun(fokus, folder) || ""}
+                  onChange={(e) => aksiAkun.pindah?.(e.target.value || null)}
+                  aria-label="Folder"
+                >
+                  <option value="">Ungrouped</option>
+                  {folder.map((f) => <option key={f.id} value={f.id}>{f.nama}</option>)}
+                </select>
+              </Prop>
+            )}
             <Prop nama="FPS limit">
               <span className="flex-1">
                 {fokus.hemat ? `${fokus.hemat_fps || 10} FPS (saver)` : fokus.fps_cap ? `${fokus.fps_cap} FPS` : "Roblox default"}
@@ -218,6 +234,23 @@ export default function LaunchBar({
                 className="-my-1"
               />
             </Prop>
+            {(() => {
+              const f = folder.find((x) => x.id === folderAkun(fokus, folder));
+              if (!f?.preset) return null;
+              const sama = sesuaiPreset(fokus, f.preset);
+              return (
+                <div className={cx("flex items-center gap-2 border-b border-line px-6 py-1 text-meta leading-4", sama ? "text-dim" : "text-warn")}>
+                  <span className="min-w-0 flex-1">
+                    {sama ? `Follows the ${f.nama} preset: ${labelPreset(f.preset)}.` : `Differs from the ${f.nama} preset (${labelPreset(f.preset)}).`}
+                  </span>
+                  {!sama && (
+                    <button type="button" className="link flex-none" onClick={() => aksiAkun.terapkanPreset?.(f)}>
+                      Apply folder preset
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
             <Prop
               nama="Resource saver"
               title="For AFK accounts: low FPS (10 by default), low graphics, low priority. Measured on Violence District at 10 FPS: CPU about -66%, GPU about -69%."

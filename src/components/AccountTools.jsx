@@ -4,7 +4,8 @@ import { api, FPS_SAVER } from "../lib/api";
 import Modal from "./Modal";
 import { Button, Input, StatusBadge, cx } from "./Primitives";
 
-export default function AccountTools({ terbuka, onTutup, akunDipilih, beriTahu, onHemat }) {
+export default function AccountTools({ terbuka, onTutup, akunDipilih, beriTahu, onHemat, folder = [], onPindah }) {
+  const [folderTujuan, setFolderTujuan] = useState("");
   const [target, setTarget] = useState("");
   const [ketemu, setKetemu] = useState(null);
   const [namaBaru, setNamaBaru] = useState("");
@@ -220,6 +221,29 @@ export default function AccountTools({ terbuka, onTutup, akunDipilih, beriTahu, 
       )}
 
       {hasil && <Hasil h={hasil} akunDipilih={akunDipilih} />}
+
+      {folder.length > 0 && (
+        <section className="mb-4 border border-line bg-app-bg p-3" aria-label="Folder">
+          <div className="text-body font-semibold text-ink">Folder</div>
+          <div className="text-meta leading-4 text-dim">
+            Move the selected accounts. A folder's resource saver preset is applied to accounts moved into it.
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <select
+              className="field w-auto flex-none"
+              value={folderTujuan}
+              onChange={(e) => setFolderTujuan(e.target.value)}
+              aria-label="Move selected accounts to folder"
+            >
+              <option value="">Ungrouped</option>
+              {folder.map((f) => <option key={f.id} value={f.id}>{f.nama}</option>)}
+            </select>
+            <Button className="flex-none" disabled={n === 0} onClick={() => onPindah?.(akunDipilih.map((a) => a.id), folderTujuan || null)}>
+              Move {n} account{n === 1 ? "" : "s"}
+            </Button>
+          </div>
+        </section>
+      )}
 
       <section className="mb-4 border border-line bg-app-bg p-3" aria-label="Resource saver">
         <div className="flex items-start gap-2">

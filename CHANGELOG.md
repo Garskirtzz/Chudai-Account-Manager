@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.0 — 3 Nov 2026
+
+- **Account folders.** Group accounts into folders (for example *Farming* and *Boosting*): click the folder button next to *Accounts* in the Explorer. Each folder has a name, a color, and an icon; an account is in one folder or in *Ungrouped*.
+- Move accounts by dragging them onto a folder (in the Explorer, on a folder chip, or from the grid), from an account's **⋯ → Move to folder**, from **Properties → Folder**, or for all selected accounts in **Account tools → Folder**. Add Account can put a new account straight into a folder.
+- A folder's checkbox selects every account in it; **Launch folder** launches them. Folder chips above the account list show one folder at a time.
+- **Resource saver preset per folder**: e.g. Farming = saver on, 10 FPS, 512 MB. It is applied to every account in the folder and to accounts moved in later; accounts can still be changed one by one, and Properties shows when one differs from its folder.
+- Rename a folder in place (double-click or F2), reorder with Move up / Move down, and delete it without losing its accounts (they move to Ungrouped).
+- The Explorer filter also matches folder names.
+
 ## 0.9.10 — 3 Nov 2026
 
 - After an update is installed, Output says "Updated to …" once, so you know the update worked.

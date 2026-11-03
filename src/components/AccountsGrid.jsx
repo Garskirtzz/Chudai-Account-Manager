@@ -1,9 +1,10 @@
 import { memo, useLayoutEffect, useRef, useState } from "react";
 import {
-  Play, MoreHorizontal, Pencil, Trash2, Copy, RefreshCw, KeyRound, Gauge,
+  Play, MoreHorizontal, Pencil, Trash2, Copy, RefreshCw, KeyRound, Gauge, Inbox,
 } from "lucide-react";
 import { Checkbox, Dropdown, DropdownItem, DropdownSeparator, StatusBadge, pindahBaris, cx } from "./Primitives";
 import { waktuRelatif, samarkan } from "../lib/api";
+import { IkonFolder, folderAkun, DND_AKUN } from "../lib/folder";
 
 export default function AccountsGrid({
   akun,
@@ -19,6 +20,8 @@ export default function AccountsGrid({
   sedangLuncur,
   sedangPerbarui,
   aksi,
+  folder = [],
+  onPindah,
 }) {
   const idTab = akun.some((a) => a.id === fokusId) ? fokusId : akun[0]?.id;
 
@@ -81,6 +84,9 @@ export default function AccountsGrid({
             sedangLuncur={sedangLuncur}
             sedangPerbarui={sedangPerbarui.has(a.id)}
             aksi={aksi}
+            folder={folder}
+            onPindah={onPindah}
+            idSeret={() => (dipilih.has(a.id) ? [...dipilih] : [a.id])}
             kolUsername={kolom.username}
             kolTerakhir={kolom.terakhir}
             kolFps={kolom.fps}
@@ -94,8 +100,9 @@ export default function AccountsGrid({
 
 const Baris = memo(function Baris({
   a, dipilih, fokus, bisaTab, pid, onToggle, onFokus, sembunyikanUsername, sedangLuncur, sedangPerbarui, aksi,
-  kolUsername, kolTerakhir, kolFps,
+  kolUsername, kolTerakhir, kolFps, folder, onPindah, idSeret,
 }) {
+  const fAkun = folder.find((f) => f.id === folderAkun(a, folder)) || null;
   const [gagalGambar, setGagalGambar] = useState(false);
   const hidup = pid && pid.length > 0;
   const dipakai = waktuRelatif(a.last_launched);
@@ -114,6 +121,11 @@ const Baris = memo(function Baris({
         else pindahBaris(e, (el) => onFokus(el.dataset.id));
       }}
       data-id={a.id}
+      draggable={folder.length > 0}
+      onDragStart={(e) => {
+        e.dataTransfer.setData(DND_AKUN, JSON.stringify(idSeret()));
+        e.dataTransfer.effectAllowed = "move";
+      }}
       className={cx(
         "group h-(--density-table-row) cursor-pointer border-b border-line",
         dipilih ? "bg-accent text-on-accent focus-visible:outline-white" : fokus ? "bg-hover" : "hover:bg-hover",
@@ -140,6 +152,12 @@ const Baris = memo(function Baris({
             </span>
           )}
           <span className="truncate font-semibold">{a.alias}</span>
+          {fAkun && (
+            <span title={`Folder: ${fAkun.nama}`} className="flex flex-none items-center">
+              <IkonFolder f={fAkun} size={12} className={dipilih ? "!text-white/90" : ""} />
+              <span className="sr-only">, folder {fAkun.nama}</span>
+            </span>
+          )}
           {a.premium && (
             <span className={cx("min-w-0 shrink-[9] truncate text-meta", dipilih ? "text-white/80" : "text-warn")}>Premium</span>
           )}
@@ -225,6 +243,21 @@ const Baris = memo(function Baris({
               FPS limit{a.fps_cap ? ` (${a.fps_cap})` : ""}
             </DropdownItem>
             <DropdownItem icon={Copy} onClick={() => aksi.salin(a)}>Copy cookie</DropdownItem>
+            {folder.length > 0 && (
+              <>
+                <DropdownSeparator />
+                <div className="px-3 pt-1 pb-0.5 text-cap text-dim" aria-hidden>Move to folder</div>
+                {[...folder, null].map((f) => {
+                  const id = f ? f.id : null;
+                  const di = folderAkun(a, folder) === id;
+                  return (
+                    <DropdownItem key={id || "tanpa"} icon={f ? () => <IkonFolder f={f} size={13} /> : Inbox} disabled={di} onClick={() => onPindah?.([a.id], id)}>
+                      {f ? f.nama : "Ungrouped"}{di ? " (current)" : ""}
+                    </DropdownItem>
+                  );
+                })}
+              </>
+            )}
             <DropdownSeparator />
             <DropdownItem icon={Trash2} danger onClick={() => aksi.hapus(a)}>Delete account</DropdownItem>
           </Dropdown>

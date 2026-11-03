@@ -44,6 +44,7 @@ struct AkunView {
     hemat_minimize: bool,
     hemat_ram_mb: u32,
     hemat_fps: u32,
+    folder_id: Option<String>,
 }
 
 impl From<&Account> for AkunView {
@@ -65,6 +66,7 @@ impl From<&Account> for AkunView {
             hemat_minimize: a.hemat_minimize,
             hemat_ram_mb: a.hemat_ram_mb,
             hemat_fps: a.hemat_fps,
+            folder_id: a.folder_id.clone(),
         }
     }
 }
@@ -85,8 +87,20 @@ async fn tambah_akun(
     state: State<'_, AppState>,
     cookie: String,
     alias: String,
+    folder_id: Option<String>,
 ) -> Result<AkunView, String> {
-    simpan_cookie(&state.store, cookie, alias, false).await.map(|(v, _)| v)
+    let (v, _) = simpan_cookie(&state.store, cookie, alias, false).await?;
+    masukkan_folder(&state.store, v, folder_id)
+}
+
+fn masukkan_folder(store: &Mutex<Store>, v: AkunView, folder_id: Option<String>) -> Result<AkunView, String> {
+    let Some(f) = folder_id.filter(|f| !f.is_empty()) else { return Ok(v) };
+    let mut s = store.lock().unwrap();
+    if s.pindah_akun(&[v.id.clone()], Some(&f)).is_err() {
+        return Ok(v);
+    }
+    s.save()?;
+    Ok(s.find(&v.id).map(AkunView::from).unwrap_or(v))
 }
 
 async fn simpan_cookie(
@@ -147,6 +161,7 @@ async fn simpan_cookie(
         hemat_minimize: false,
         hemat_ram_mb: 0,
         hemat_fps: 0,
+        folder_id: None,
     };
 
     let view = AkunView::from(&akun);
@@ -159,7 +174,7 @@ async fn simpan_cookie(
 const LABEL_LOGIN: &str = "login-roblox";
 
 #[tauri::command]
-async fn login_browser(app: tauri::AppHandle, state: State<'_, AppState>, alias: String) -> Result<String, String> {
+async fn login_browser(app: tauri::AppHandle, state: State<'_, AppState>, alias: String, folder_id: Option<String>) -> Result<String, String> {
     if let Some(w) = app.get_webview_window(LABEL_LOGIN) {
         let _ = w.set_focus();
         return Err("A Roblox login window is already open.".into());
@@ -208,11 +223,75 @@ async fn login_browser(app: tauri::AppHandle, state: State<'_, AppState>, alias:
     let _ = jendela.destroy();
 
     let (view, diperbarui) = simpan_cookie(&state.store, cookie, alias, true).await?;
+    let view = if diperbarui { view } else { masukkan_folder(&state.store, view, folder_id)? };
     Ok(if diperbarui {
         format!("{}: cookie renewed from the Roblox login. Settings kept.", view.alias)
     } else {
         format!("{} added from the Roblox login.", view.alias)
     })
+}
+
+#[tauri::command]
+fn daftar_folder(state: State<AppState>) -> Vec<store::Folder> {
+    state.store.lock().unwrap().folder.clone()
+}
+
+#[tauri::command]
+fn buat_folder(state: State<AppState>, nama: String, warna: String, ikon: String) -> Result<store::Folder, String> {
+    let nama = store::nama_folder_sah(&nama)?;
+    let mut s = state.store.lock().unwrap();
+    if s.folder.iter().any(|f| f.nama.eq_ignore_ascii_case(&nama)) {
+        return Err(format!("A folder named \"{nama}\" already exists."));
+    }
+    let f = store::Folder { id: uuid::Uuid::new_v4().to_string(), nama, warna, ikon, preset: None };
+    s.folder.push(f.clone());
+    s.save()?;
+    Ok(f)
+}
+
+#[tauri::command]
+fn ubah_folder(state: State<AppState>, folder: store::Folder) -> Result<usize, String> {
+    let nama = store::nama_folder_sah(&folder.nama)?;
+    let mut s = state.store.lock().unwrap();
+    if s.folder.iter().any(|f| f.id != folder.id && f.nama.eq_ignore_ascii_case(&nama)) {
+        return Err(format!("A folder named \"{nama}\" already exists."));
+    }
+    let f = s.folder.iter_mut().find(|f| f.id == folder.id).ok_or("Folder not found.")?;
+    *f = store::Folder { nama, ..folder.clone() };
+    let n = s.terapkan_preset_folder(&folder.id);
+    s.save()?;
+    Ok(n)
+}
+
+#[tauri::command]
+fn hapus_folder(state: State<AppState>, id: String) -> Result<usize, String> {
+    let mut s = state.store.lock().unwrap();
+    let n = s.hapus_folder(&id)?;
+    s.save()?;
+    Ok(n)
+}
+
+#[tauri::command]
+fn urutkan_folder(state: State<AppState>, ids: Vec<String>) -> Result<(), String> {
+    let mut s = state.store.lock().unwrap();
+    s.urutkan_folder(&ids);
+    s.save()
+}
+
+#[tauri::command]
+fn pindah_akun(state: State<AppState>, ids: Vec<String>, folder_id: Option<String>) -> Result<usize, String> {
+    let mut s = state.store.lock().unwrap();
+    let n = s.pindah_akun(&ids, folder_id.as_deref())?;
+    s.save()?;
+    Ok(n)
+}
+
+#[tauri::command]
+fn terapkan_preset_folder(state: State<AppState>, id: String) -> Result<usize, String> {
+    let mut s = state.store.lock().unwrap();
+    let n = s.terapkan_preset_folder(&id);
+    s.save()?;
+    Ok(n)
 }
 
 #[tauri::command]
@@ -2089,6 +2168,13 @@ fn main() {
             set_hemat_akun,
             jendela_hemat,
             periksa_versi_hemat,
+            daftar_folder,
+            buat_folder,
+            ubah_folder,
+            hapus_folder,
+            urutkan_folder,
+            pindah_akun,
+            terapkan_preset_folder,
             set_klien_path,
             tambah_klien_kustom,
             hapus_klien_kustom,

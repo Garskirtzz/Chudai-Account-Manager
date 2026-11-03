@@ -20,6 +20,17 @@ In a browser signed in to roblox.com: F12 → Application → Cookies → `.robl
 
 The cookie is equivalent to a password and bypasses 2FA. It is encrypted with Windows DPAPI before it is written to disk, so the stored file is useless on another PC or Windows user.
 
+## Folders
+
+Folders keep different kinds of accounts apart, for example a *Farming* folder and a *Boosting* folder. Each account is in one folder, or in *Ungrouped*.
+
+- **Create**: click the folder button next to *Accounts* in the Explorer (or **+ New folder** above the account list). Pick a name, a color, and an icon.
+- **Move accounts**: drag an account onto a folder in the Explorer or onto a folder chip above the list. Dragging a selected account moves every selected account. Without a mouse: an account's **⋯ → Move to folder**, **Properties → Folder**, or **Account tools → Folder** for all selected accounts.
+- **Select or launch a folder**: the folder's checkbox selects all of its accounts; its **⋯ → Launch folder** launches them.
+- **Show one folder**: click the folder's name in the Explorer, or a chip above the list (*All* shows everything). The choice is remembered.
+- **Rename**: double-click the folder name, or press F2. **Reorder**: ⋯ → Move up / Move down. **Delete**: ⋯ → Delete folder; its accounts stay and move to Ungrouped.
+- **Resource saver preset**: ⋯ → Color, icon & saver preset. When it is on, every account in the folder gets those resource saver settings, and so does every account moved in later. You can still change an account on its own; Properties shows when it differs from its folder and offers **Apply folder preset**.
+
 ## Focus and selection
 
 - **Click an account name** to see its details in **Properties**. This does not change the selection.

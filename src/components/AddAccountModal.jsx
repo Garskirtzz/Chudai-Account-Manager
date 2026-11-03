@@ -2,9 +2,14 @@ import { useEffect, useState } from "react";
 import { UserPlus, ShieldCheck, Eye, EyeOff, AlertTriangle, LogIn, Loader2 } from "lucide-react";
 import Modal from "./Modal";
 import { Button } from "./Primitives";
+import { labelPreset } from "../lib/folder";
 
-export default function AddAccountModal({ buka, onTutup, onSimpan, onLogin, onBatalLogin }) {
+export default function AddAccountModal({ buka, onTutup, onSimpan, onLogin, onBatalLogin, folder = [], folderAwal = "" }) {
   const [alias, setAlias] = useState("");
+  const [folderId, setFolderId] = useState(folderAwal);
+  useEffect(() => {
+    if (buka) setFolderId(folderAwal);
+  }, [buka, folderAwal]);
   const [cookie, setCookie] = useState("");
   const [lihat, setLihat] = useState(false);
   const [sibuk, setSibuk] = useState(false);
@@ -26,14 +31,14 @@ export default function AddAccountModal({ buka, onTutup, onSimpan, onLogin, onBa
 
   const login = async () => {
     setMenunggu(true);
-    const ok = await onLogin?.(alias);
+    const ok = await onLogin?.(alias, folderId);
     setMenunggu(false);
     if (ok) tutup();
   };
 
   const simpan = async () => {
     setSibuk(true);
-    const ok = await onSimpan(cookie, alias);
+    const ok = await onSimpan(cookie, alias, folderId);
     setSibuk(false);
     if (ok) tutup();
   };
@@ -72,6 +77,17 @@ export default function AddAccountModal({ buka, onTutup, onSimpan, onLogin, onBa
         placeholder="Leave empty to use the username"
         className="field mb-4"
       />
+      {folder.length > 0 && (
+        <>
+          <label htmlFor="tambah-folder" className="mb-1 block text-body text-dim">Folder</label>
+          <select id="tambah-folder" value={folderId} onChange={(e) => setFolderId(e.target.value)} className="field mb-4">
+            <option value="">Ungrouped</option>
+            {folder.map((f) => (
+              <option key={f.id} value={f.id}>{f.nama}{f.preset ? ` (${labelPreset(f.preset)})` : ""}</option>
+            ))}
+          </select>
+        </>
+      )}
 
       <section className="mb-4 border border-line bg-app-bg p-3" aria-label="Log in with browser">
         <div className="text-body font-semibold text-ink">
