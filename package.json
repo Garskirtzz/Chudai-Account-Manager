@@ -1,0 +1,36 @@
+{
+  "name": "roblox-account-manager",
+  "version": "0.9.8",
+  "private": true,
+  "scripts": {
+    "lint": "eslint .",
+    "smoke": "node scripts/smoke.mjs",
+    "verify": "npm run lint && npm run build:web && npm run cek-url && npm run cek-parser && npm run smoke && npm run cek-dropdown && npm run uji-ui",
+    "dev:web": "vite",
+    "build:web": "vite build",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri",
+    "cek-url": "node scripts/cek-url.mjs",
+    "cek-parser": "node scripts/cek-parser.mjs",
+    "cek-dropdown": "node scripts/cek-dropdown.mjs",
+    "uji-ui": "node scripts/uji-ui.mjs",
+    "rilis": "tauri build && node scripts/rilis.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "@tauri-apps/cli": "^2",
+    "@vitejs/plugin-react": "^6.1.1",
+    "eslint": "^10.10.0",
+    "globals": "^17.12.0",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.2.2"
+  },
+  "dependencies": {
+    "@fontsource-variable/source-sans-3": "^5.3.1",
+    "lucide-react": "^1.40.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}

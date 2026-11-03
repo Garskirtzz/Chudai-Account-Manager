@@ -1,0 +1,24 @@
+# Dependensi & hasil build (dibuat ulang oleh npm install / npm run build / tauri build)
+node_modules/
+dist/
+src-tauri/target/
+
+# Rilis: exe + installer hasil `npm run rilis` -- bukan kode sumber
+rilis/
+
+# Data & rahasia: data akun CAM ada di %APPDATA%, bukan di sini. Ini jaring
+# pengaman kalau suatu saat ada salinan yang tertinggal di folder proyek.
+accounts.json
+*.cookie
+.env
+.env.*
+
+# Sisa alat & sistem
+*.log
+*.tmp
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+__pycache__/
+*.pyc
