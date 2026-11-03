@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.9 — 3 Nov 2026
+
+- **One-click updates.** About → Updates now installs new versions: it downloads the installer from GitHub Releases, checks its digital signature, installs it, and reopens the app. Accounts and settings are kept.
+- The app checks for a new version once after it opens and says so in Output.
+- Install update is disabled while Roblox clients are running, because installing closes the app and would close them too.
+- Updates work for the copy installed with the setup program; install this version with the setup program once.
+
 ## 0.9.8 — 3 Nov 2026
 
 - New app ID (`com.chudai.accountmanager`). Accounts, saved servers, and settings are kept; only **Density** and the Servers page's **Auto-load regions** switch go back to their defaults once.

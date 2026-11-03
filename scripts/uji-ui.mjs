@@ -1,8 +1,7 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { spawn, spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { bukaEdge, tutupEdge } from "./edge-uji.mjs";
 import { join, extname } from "node:path";
 
 const DIST = "dist";
@@ -33,7 +32,8 @@ window.__fetch = 0; const _f = window.fetch; window.fetch = (...a) => { if (!Str
 window.__mode = { cari: "ada", simpan: "ok" }; window.__luncur = [];
 window.__AKUN = ${JSON.stringify(AKUN)}; window.__hemat = [];
 window.__target = ${JSON.stringify(target || null)}; window.__simpanTarget = 0; window.__saved = []; window.__login = [];
-let klien = 0, joinPada = Infinity;
+window.__update = null; window.__pasang = 0; window.__cekUpdate = 0;
+let klien = 0, joinPada = Infinity; window.__setKlien = (n) => { klien = n; };
 const tunda = (ms) => new Promise((r) => setTimeout(r, ms));
 window.__TAURI__ = { core: { invoke: async (c, a) => {
   if (c === "daftar_akun") return JSON.parse(JSON.stringify(window.__AKUN));
@@ -56,6 +56,9 @@ window.__TAURI__ = { core: { invoke: async (c, a) => {
     return [{ place_id: 111, name: "Game Satu", icon_url: "", players: 10 }, { place_id: 222, name: "Game Dua Dengan Nama Yang Panjang Sekali", icon_url: "", players: 5 }]; }
   if (c === "luncurkan") { window.__luncur.push({ id: a.id, placeId: a.placeId }); setTimeout(() => { klien++; joinPada = Date.now() + 300; }, 200); return "ok"; }
   if (c === "jumlah_klien_roblox") return klien;
+  if (c === "cek_update") { window.__cekUpdate++; return window.__update; }
+  if (c === "pasang_update") { if (klien > 0) throw "Close all Roblox clients first."; window.__pasang++; return null; }
+  if (c === "status_update") return { tahap: "mengunduh", diunduh: 5242880, total: 10485760, pesan: "" };
   if (c === "jumlah_join_sejak") return Date.now() > joinPada ? 1 : 0;
   if (c === "set_tema") { await tunda(400); if (window.__mode.simpan === "galat") throw "disk full (dummy)"; return null; }
   if (c === "daftar_riwayat") return ${JSON.stringify(RIWAYAT)};
@@ -388,9 +391,20 @@ async function skenario({ penuh, versi, pulih }) {
       $$("button").find((b) => b.textContent.includes("View changelog")).click(); await tidur(300);
       cek("About: changelog dari bundel memuat versi ini", ($('[role="dialog"]')?.innerText || "").includes(versi));
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); await tidur(250);
+      cek("Update: dicek otomatis sekali saat start (lewat updater, bukan fetch)", window.__cekUpdate === 1 && window.__fetch === 0, `${window.__cekUpdate}/${window.__fetch}`);
       tombol("Check for updates").click(); await tidur(300);
-      cek("Update: 'Couldn’t check for updates' + 'No update source is configured'", teks().includes("Couldn’t check for updates") && teks().includes("No update source is configured"));
-      cek("Update: NOL permintaan jaringan", window.__fetch === 0, window.__fetch);
+      cek("Update: tidak ada versi baru -> 'Up to date'", teks().includes("Up to date"));
+      window.__update = { versi: "9.9.9", catatan: "Catatan uji rilis.", tanggal: "2026-11-03" };
+      tombol("Check for updates").click(); await tidur(300);
+      cek("Update: versi baru tampil + catatan + tombol Install", teks().includes("Update available: 9.9.9") && teks().includes("Catatan uji rilis.") && !!tombol("Install update"),
+        teks().slice(0, 200).replace(/\s+/g, " "));
+      window.__setKlien(2); await tidur(2300);
+      cek("Update: Install terkunci selama klien Roblox berjalan + alasan", tombol("Install update").disabled && teks().includes("Close all Roblox clients first (2 running)"));
+      window.__setKlien(0); await tidur(2300);
+      cek("Update: terbuka lagi setelah klien ditutup", !tombol("Install update").disabled);
+      tombol("Install update").click(); await tidur(900);
+      cek("Update: memasang -> kemajuan unduhan tampil", window.__pasang === 1 && teks().includes("Downloading 5.0 of 10.0 MB (50%)") && teks().includes("Installing 9.9.9"));
+      cek("Update: NOL fetch dari halaman", window.__fetch === 0, window.__fetch);
     });
   }
 
@@ -425,15 +439,14 @@ async function jalankan(edge, html, { ukuran, density, penuh, target }) {
     catch { res.writeHead(404).end(); }
   });
   await new Promise((r) => server.listen(PORT, r));
-  const profil = mkdtempSync(join(tmpdir(), "uji-ui-"));
-  const anak = spawn(edge, ["--headless", "--disable-gpu", "--no-sandbox", "--no-first-run", `--user-data-dir=${profil}`, `--window-size=${ukuran}`, `http://localhost:${PORT}/`]);
+  const edgeUji = bukaEdge(edge, [`--window-size=${ukuran}`, `http://localhost:${PORT}/`], "uji-ui-");
+  const anak = edgeUji.anak;
   let galatSpawn = null;
   anak.on("error", (e) => (galatSpawn = e));
   const batas = Date.now() + (process.env.UJI_SINGKAT ? 25000 : 90000);
   while (hasil === null && !galatSpawn && Date.now() < batas) await new Promise((r) => setTimeout(r, 250));
-  try { spawnSync("taskkill", ["/T", "/F", "/PID", String(anak.pid)], { stdio: "ignore" }); } catch { anak.kill(); }
+  await tutupEdge(edgeUji);
   server.closeAllConnections?.(); server.close();
-  try { rmSync(profil, { recursive: true, force: true }); } catch {  }
   if (galatSpawn) throw galatSpawn;
   return hasil === null ? [{ nama: "halaman tidak melaporkan hasil", ok: false, info: "" }] : JSON.parse(hasil);
 }

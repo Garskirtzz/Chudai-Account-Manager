@@ -1,6 +1,6 @@
 {
   "name": "roblox-account-manager",
-  "version": "0.9.8",
+  "version": "0.9.9",
   "private": true,
   "scripts": {
     "lint": "eslint .",
@@ -9,13 +9,13 @@
     "dev:web": "vite",
     "build:web": "vite build",
     "dev": "tauri dev",
-    "build": "tauri build",
+    "build": "node scripts/bangun.mjs",
     "tauri": "tauri",
     "cek-url": "node scripts/cek-url.mjs",
     "cek-parser": "node scripts/cek-parser.mjs",
     "cek-dropdown": "node scripts/cek-dropdown.mjs",
     "uji-ui": "node scripts/uji-ui.mjs",
-    "rilis": "tauri build && node scripts/rilis.mjs"
+    "rilis": "node scripts/bangun.mjs && node scripts/rilis.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

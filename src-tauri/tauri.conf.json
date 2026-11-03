@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Chudai Account Manager",
-  "version": "0.9.8",
+  "version": "0.9.9",
   "identifier": "com.chudai.accountmanager",
   "build": {
     "frontendDist": "../dist",
@@ -29,7 +29,9 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "publisher": "Chudai",
     "icon": [
       "icons/32x32.png",
@@ -42,6 +44,18 @@
         "installMode": "currentUser",
         "installerIcon": "icons/icon.ico",
         "installerHooks": "installer-hooks.nsh"
+      }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI0RUUzRTJCQTQxQzUwMUIKUldRYlVCeWtLejd1Skl5b1ZVcUtkSkhpQWl4SEtibVdRZUFESmo4U3hsTzAyQ29Ca3haZ1I4bkQK",
+      "endpoints": [
+        "https://github.com/Garskirtzz/Chudai-Account-Manager/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
       }
     }
   }

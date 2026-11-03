@@ -45,6 +45,9 @@ export const api = {
   setHematAkun: (id, hemat, minimize, ramMb, fps) =>
     invoke("set_hemat_akun", { id, hemat, minimize, ramMb, fps }),
   jendelaHemat: (id) => invoke("jendela_hemat", { id }),
+  cekUpdate: () => invoke("cek_update"),
+  pasangUpdate: () => invoke("pasang_update"),
+  statusUpdate: () => invoke("status_update"),
   periksaVersiHemat: (id) => invoke("periksa_versi_hemat", { id }),
   fpsTerpasang: () => invoke("fps_terpasang"),
   daftarVersiRoblox: () => invoke("daftar_versi_roblox"),

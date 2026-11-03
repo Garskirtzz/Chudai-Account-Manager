@@ -37,6 +37,7 @@ export default function App() {
   const [modalBuka, setModalBuka] = useState(false);
   const [fokusId, setFokusId] = useState(null);
   const [tampilan, setTampilan] = useState("akun");
+  const [updateAwal, setUpdateAwal] = useState(null);
   const [riwayat, setRiwayat] = useState([]);
   const [pilihanLuar, setPilihanLuar] = useState(null);
   const [serverTersimpan, setServerTersimpan] = useState([]);
@@ -430,6 +431,21 @@ export default function App() {
       beriTahu(String(e), "salah");
     }
   };
+
+  useEffect(() => {
+    const h = setTimeout(() => {
+      api
+        .cekUpdate()
+        .then((info) => {
+          if (info && info.versi) {
+            setUpdateAwal(info);
+            beriTahu(`Update ${info.versi} is available. Open About to install it.`, "benar");
+          }
+        })
+        .catch(() => {});
+    }, 4000);
+    return () => clearTimeout(h);
+  }, [beriTahu]);
 
   const toggleSembunyikan = async () => {
     try {
@@ -890,7 +906,7 @@ export default function App() {
                 ) : tampilan === "tema" ? (
                   <ThemeEditor beriTahu={beriTahu} />
                 ) : tampilan === "about" ? (
-                  <AboutView beriTahu={beriTahu} />
+                  <AboutView beriTahu={beriTahu} updateAwal={updateAwal} />
                 ) : tampilan === "riwayat" ? (
                   <HistoryView
                     status={statusRiwayat}

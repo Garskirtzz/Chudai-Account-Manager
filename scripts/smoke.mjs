@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { spawn } from "node:child_process";
+import { bukaEdge, tutupEdge } from "./edge-uji.mjs";
 import { join, extname } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -197,10 +197,8 @@ async function main() {
 
   const ambilDom = async (query, id) => {
     const pisah = query.includes("?") ? "&" : "?";
-    const anak = spawn(edge, [
-      "--headless", "--disable-gpu", "--no-sandbox",
-      `http://localhost:${PORT}/${query}${pisah}id=${id}`,
-    ]);
+    const edgeUji = bukaEdge(edge, [`http://localhost:${PORT}/${query}${pisah}id=${id}`], "edge-smoke-");
+    const anak = edgeUji.anak;
     let galatSpawn = null;
     anak.on("error", (e) => (galatSpawn = e));
 
@@ -208,10 +206,7 @@ async function main() {
     while (!hasilDom.has(id) && Date.now() < batas && !galatSpawn) {
       await new Promise((r) => setTimeout(r, 250));
     }
-    try {
-      anak.kill();
-    } catch {
-    }
+    await tutupEdge(edgeUji);
     if (galatSpawn) throw galatSpawn;
     if (!hasilDom.has(id)) {
       console.error(`  [dump "${query}"] halaman tidak pernah mengirim DOM (30 dtk).`);
@@ -225,17 +220,6 @@ async function main() {
   const domServer = await ambilDom("?tab=server", "server");
 
   server.close();
-
-  await new Promise((selesai) => {
-    const ps = spawn("powershell.exe", [
-      "-NoProfile", "-Command",
-      "Get-CimInstance Win32_Process -Filter \"Name='msedge.exe'\" | " +
-        "Where-Object { $_.CommandLine -like '*localhost:8799*' } | " +
-        "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }",
-    ]);
-    ps.on("close", selesai);
-    ps.on("error", selesai);
-  });
 
   for (const [nama, d] of [["utama", dom], ["halaman Roblox", domRoblox], ["halaman Servers", domServer]]) {
     const judul = (d.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || "";

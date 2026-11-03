@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { spawn, spawnSync } from "node:child_process";
+import { bukaEdge, tutupEdge } from "./edge-uji.mjs";
 import { join, extname } from "node:path";
 
 const DIST = "dist";
@@ -155,22 +155,15 @@ async function main() {
   });
   await new Promise((r) => server.listen(PORT, r));
 
-  const anak = spawn(edge, [
-    "--headless", "--disable-gpu", "--no-sandbox",
-    "--window-size=1200,760",
-    `http://localhost:${PORT}/`,
-  ]);
+  const edgeUji = bukaEdge(edge, ["--window-size=1200,760", `http://localhost:${PORT}/`], "edge-dropdown-");
+  const anak = edgeUji.anak;
   let galatSpawn = null;
   anak.on("error", (e) => (galatSpawn = e));
   const batas = Date.now() + 45000;
   while (hasil === null && !galatSpawn && Date.now() < batas) {
     await new Promise((r) => setTimeout(r, 250));
   }
-  try {
-    spawnSync("taskkill", ["/T", "/F", "/PID", String(anak.pid)], { stdio: "ignore" });
-  } catch {
-    anak.kill();
-  }
+  await tutupEdge(edgeUji);
   server.closeAllConnections?.();
   server.close();
   if (galatSpawn) throw galatSpawn;

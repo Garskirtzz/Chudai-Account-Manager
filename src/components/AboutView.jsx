@@ -1,30 +1,66 @@
-import { useState } from "react";
-import { BookOpen, ScrollText, RefreshCw, Copy, CircleCheck, AlertTriangle, ArrowUpCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BookOpen, ScrollText, RefreshCw, Download, CircleCheck, AlertTriangle, ArrowUpCircle } from "lucide-react";
 import { Category, Prop, Button, StatusBadge } from "./Primitives";
 import Modal from "./Modal";
-import { VERSI_APP, tanggalBuild, cekPembaruan } from "../lib/rilis";
+import { VERSI_APP, tanggalBuild } from "../lib/rilis";
+import { api, tidur } from "../lib/api";
 import panduan from "../../docs/USER_GUIDE.md?raw";
 import changelog from "../../CHANGELOG.md?raw";
 
-export default function AboutView({ beriTahu }) {
+const MB = (b) => (b / 1048576).toFixed(1);
+
+export default function AboutView({ beriTahu, updateAwal }) {
   const [dok, setDok] = useState(null); 
-  const [update, setUpdate] = useState({ status: "belum" });
+  const [update, setUpdate] = useState(updateAwal ? { status: "ada", ...updateAwal } : { status: "belum" });
+  const [klien, setKlien] = useState(0);
+  const [kemajuan, setKemajuan] = useState(null); 
+
+  useEffect(() => {
+    if (update.status !== "ada") return;
+    let hidup = true;
+    const baca = () => api.jumlahKlien().then((n) => hidup && setKlien(Number(n) || 0)).catch(() => {});
+    baca();
+    const h = setInterval(baca, 2000);
+    return () => { hidup = false; clearInterval(h); };
+  }, [update.status]);
 
   const periksa = async () => {
     setUpdate({ status: "memeriksa" });
-    const h = await cekPembaruan();
-    setUpdate(h);
-    if (h.status === "galat") beriTahu?.(`Couldn’t check for updates: ${h.pesan}`, "salah");
-    else if (h.status === "ada") beriTahu?.(`Update available: ${h.versi}.`, "benar");
-    else beriTahu?.(`Chudai Account Manager ${VERSI_APP} is up to date.`, "benar");
+    try {
+      const info = await api.cekUpdate();
+      if (info && info.versi) {
+        setUpdate({ status: "ada", ...info });
+        beriTahu?.(`Update available: ${info.versi}.`, "benar");
+      } else {
+        setUpdate({ status: "terbaru" });
+        beriTahu?.(`Chudai Account Manager ${VERSI_APP} is up to date.`, "benar");
+      }
+    } catch (e) {
+      setUpdate({ status: "galat", pesan: String(e) });
+      beriTahu?.(`Couldn’t check for updates: ${e}`, "salah");
+    }
   };
 
-  const salin = async (teks) => {
+  const pasang = async () => {
+    const info = update;
     try {
-      await navigator.clipboard.writeText(teks);
-      beriTahu?.("Link copied to clipboard.", "benar");
-    } catch {
-      beriTahu?.("Couldn’t copy the link. Select it and copy it manually.", "salah");
+      await api.pasangUpdate();
+    } catch (e) {
+      beriTahu?.(String(e), "salah");
+      return;
+    }
+    setUpdate({ ...info, status: "memasang" });
+    beriTahu?.(`Downloading ${info.versi}…`);
+    for (;;) {
+      await tidur(400);
+      let k;
+      try { k = await api.statusUpdate(); } catch { continue; }
+      setKemajuan(k);
+      if (k.tahap === "galat") {
+        setUpdate({ ...info, status: "ada" });
+        beriTahu?.(k.pesan || "Update failed.", "salah");
+        return;
+      }
     }
   };
 
@@ -33,8 +69,10 @@ export default function AboutView({ beriTahu }) {
     memeriksa: <StatusBadge jenis="busy" className="text-dim">Checking…</StatusBadge>,
     terbaru: <StatusBadge jenis="ok" className="text-ok">Up to date</StatusBadge>,
     ada: <StatusBadge jenis="warn" className="text-warn">Update available{update.versi ? `: ${update.versi}` : ""}</StatusBadge>,
+    memasang: <StatusBadge jenis="busy" className="text-dim">Installing {update.versi}…</StatusBadge>,
     galat: <StatusBadge jenis="bad" className="text-bad">Couldn’t check for updates</StatusBadge>,
   }[update.status];
+  const persen = kemajuan?.total ? Math.min(100, Math.round((kemajuan.diunduh / kemajuan.total) * 100)) : null;
 
   return (
     <div>
@@ -70,20 +108,49 @@ export default function AboutView({ beriTahu }) {
         {update.status === "galat" && update.pesan && (
           <p className="m-0 border-b border-line px-6 py-1.5 text-meta leading-4 text-dim select-text">{update.pesan}</p>
         )}
-        {update.status === "ada" && update.url && (
-          <div className="flex items-center gap-2 border-b border-line px-6 py-1.5 text-meta">
-            <ArrowUpCircle size={13} className="flex-none text-warn" aria-hidden />
-            <span className="min-w-0 flex-1 truncate select-text" title={update.url}>{update.url}</span>
-            <Button className="btn-sm flex-none" icon={Copy} onClick={() => salin(update.url)}>
-              Copy link
-            </Button>
+        {(update.status === "ada" || update.status === "memasang") && (
+          <div className="border-b border-line px-6 py-2 text-meta" aria-label="Update details">
+            <div className="flex items-center gap-2">
+              <ArrowUpCircle size={13} className="flex-none text-warn" aria-hidden />
+              <span className="font-semibold text-ink">Version {update.versi}</span>
+              {update.tanggal && <span className="text-dim">· {update.tanggal}</span>}
+            </div>
+            {update.catatan && (
+              <p className="mt-1 mb-0 max-h-24 overflow-y-auto whitespace-pre-line leading-4 text-dim select-text">{update.catatan}</p>
+            )}
+            {update.status === "ada" && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Button variant="primary" icon={Download} onClick={pasang} disabled={klien > 0}>
+                  Install update
+                </Button>
+                <span role="status" className={klien > 0 ? "text-warn" : "text-dim"}>
+                  {klien > 0
+                    ? `Close all Roblox clients first (${klien} running): installing restarts this app, which would close them.`
+                    : "Downloads, verifies the signature, installs, and restarts Chudai Account Manager."}
+                </span>
+              </div>
+            )}
+            {update.status === "memasang" && (
+              <div className="mt-2" role="status">
+                <div className="h-1.5 w-full overflow-hidden bg-well" aria-hidden>
+                  <div className="h-full bg-accent transition-[width]" style={{ width: `${persen ?? 5}%` }} />
+                </div>
+                <div className="mt-1 text-dim">
+                  {kemajuan?.tahap === "memasang"
+                    ? "Installing… Chudai Account Manager will close and reopen."
+                    : kemajuan?.total
+                      ? `Downloading ${MB(kemajuan.diunduh)} of ${MB(kemajuan.total)} MB (${persen}%)`
+                      : "Downloading…"}
+                </div>
+              </div>
+            )}
           </div>
         )}
         <div className="flex items-center gap-2 border-b border-line px-6 py-2">
-          <Button icon={RefreshCw} onClick={periksa} disabled={update.status === "memeriksa"}>
+          <Button icon={RefreshCw} onClick={periksa} disabled={update.status === "memeriksa" || update.status === "memasang"}>
             {update.status === "memeriksa" ? "Checking…" : "Check for updates"}
           </Button>
-          <span className="text-meta text-dim">Manual only. Nothing is downloaded or installed.</span>
+          <span className="text-meta text-dim">Also checked once when the app starts.</span>
         </div>
       </Category>
 

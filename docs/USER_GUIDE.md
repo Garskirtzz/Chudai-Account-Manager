@@ -78,6 +78,14 @@ Recent Roblox versions keep a small process in the system tray after a game clos
 
 Running more than one Roblox client needs **Multi-instance: On** in the ribbon. It is always off when the app starts. Roblox's anti-cheat vendor has said running multiple clients may be treated as suspicious behaviour, so turn it on only when you need it.
 
+## Updates
+
+Chudai Account Manager checks for a new version once, a few seconds after it opens, and Output says so when one is available. **About → Updates** shows the new version and its notes; **Install update** downloads it, checks its digital signature (an altered or fake installer is refused), installs it, and reopens the app. Your accounts and settings are kept.
+
+Install update is disabled while Roblox clients are running: installing closes this app, which would also close them. Close the clients first.
+
+Updates work for the copy installed with the setup program. A loose copy of the .exe (for example one copied to the desktop) cannot update itself; install with the setup program once.
+
 ## Other pages
 
 - **Servers** — browse public servers for a game, filter by free slots and region, and use one as the launch target.

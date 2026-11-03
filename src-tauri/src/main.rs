@@ -12,6 +12,7 @@ mod hemat;
 mod sumber;
 mod percobaan;
 mod unduh;
+mod pembaruan;
 
 use launcher::{SingletonGuard, Tujuan};
 use rand::Rng;
@@ -2045,6 +2046,7 @@ fn main() {
             }
         }))
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState {
             store: Mutex::new(Store::load()),
             singleton: Mutex::new(singleton),
@@ -2097,6 +2099,9 @@ fn main() {
             versi_roblox_terbaru,
             periksa_versi_roblox,
             unduh_versi_roblox,
+            pembaruan::cek_update,
+            pembaruan::pasang_update,
+            pembaruan::status_update,
             status_unduh_roblox,
             batal_unduh_roblox,
             luncurkan,
