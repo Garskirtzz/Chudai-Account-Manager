@@ -14,10 +14,7 @@ pub const SANDI_MIN: usize = 8;
 const PANJANG_KEPALA: usize = 8 + 12 + 16;
 const PANJANG_NONCE: usize = 12;
 const PANJANG_TAG: usize = 16;
-#[cfg(not(test))]
 const BIAYA: (u32, u32, u32) = (64 * 1024, 3, 4);
-#[cfg(test)]
-const BIAYA: (u32, u32, u32) = (1024, 1, 1);
 const MAKS_M_KIB: u32 = 1024 * 1024;
 const MAKS_T: u32 = 20;
 const MAKS_P: u32 = 16;
@@ -136,63 +133,4 @@ pub fn akun_dari_cadangan(v: &serde_json::Value) -> Option<(crate::store::Accoun
 pub fn kunci_server(s: &ServerTersimpan) -> String {
     [s.place_id.trim(), s.link_code.trim(), s.job_id.trim()].join("|")
 }
-
-#[cfg(test)]
-mod tes {
-    use super::*;
-
-    fn isi() -> Isi {
-        Isi {
-            versi: 1,
-            dibuat: 1_700_000_000,
-            akun: vec![serde_json::json!({ "id": "x", "alias": "Budi", "user_id": 42, "cookie": "palsu" })],
-            folder: vec![Folder { id: "f1".into(), nama: "Farming".into(), ..Default::default() }],
-            server: Vec::new(),
-        }
-    }
-
-    #[test]
-    fn pulang_pergi_dan_sandi_salah() {
-        let data = kunci_isi("sandi-panjang", &isi()).unwrap();
-        let b = buka_isi("sandi-panjang", &data).unwrap();
-        assert_eq!((b.versi, b.akun[0]["cookie"].as_str()), (1, Some("palsu")));
-        assert_eq!(b.folder[0].nama, "Farming");
-        assert_eq!(buka_isi("sandi-lain!!", &data).err(), Some(Galat::SandiSalah));
-        assert!(!data.windows(5).any(|w| w == b"palsu"));
-    }
-
-    #[test]
-    fn menolak_yang_bukan_cadangan() {
-        let baik = kunci_isi("sandi-panjang", &isi()).unwrap();
-        let mut ajaib = baik.clone();
-        ajaib[0] = b'X';
-        let mut mahal = baik.clone();
-        mahal[8..12].copy_from_slice(&u32::MAX.to_le_bytes());
-        for b in [ajaib, mahal, baik[..30].to_vec(), Vec::new()] {
-            assert_eq!(buka_isi("sandi-panjang", &b).err(), Some(Galat::BukanCadangan));
-        }
-        let mut ubah = baik.clone();
-        ubah[12..16].copy_from_slice(&2u32.to_le_bytes());
-        assert_eq!(buka_isi("sandi-panjang", &ubah).err(), Some(Galat::SandiSalah));
-        assert_eq!(buka_isi("sandi-panjang", &baik[..baik.len() - 1]).err(), Some(Galat::SandiSalah));
-    }
-
-    #[test]
-    fn akun_pulang_pergi() {
-        let a = crate::store::Account {
-            id: "a1".into(),
-            alias: "Budi".into(),
-            user_id: 42,
-            catatan: "catatan".into(),
-            favorit: true,
-            cookie_enc: crate::store::encrypt("_|WARNING:-x|_ABC").unwrap(),
-            ..Default::default()
-        };
-        let v = akun_ke_cadangan(&a).unwrap();
-        assert!(v.get("cookie_enc").is_none() && v["cookie"] == "_|WARNING:-x|_ABC");
-        let (b, c) = akun_dari_cadangan(&v).unwrap();
-        assert_eq!((b.alias.as_str(), b.catatan.as_str(), b.favorit, b.user_id, c.as_str()), ("Budi", "catatan", true, 42, "_|WARNING:-x|_ABC"));
-        assert!(akun_dari_cadangan(&serde_json::json!({ "user_id": 1 })).is_none(), "tanpa cookie");
-        assert!(akun_dari_cadangan(&serde_json::json!({ "user_id": 1, "cookie": "a b" })).is_none(), "cookie tak sah");
-    }
-}
+

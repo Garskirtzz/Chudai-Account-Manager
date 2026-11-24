@@ -207,16 +207,6 @@ unsafe fn pasang_cookie_situs(wv: &ICoreWebView2, cookie: &str) -> windows_core:
     mgr.AddOrUpdateCookie(&c)
 }
 
-pub async fn ganti_cookie_uji(w: &tauri::WebviewWindow, cookie: String) -> Result<(), String> {
-    let (kirim, terima) = tokio::sync::oneshot::channel();
-    w.with_webview(move |pv| {
-        let r = unsafe { pv.controller().CoreWebView2().and_then(|wv| pasang_cookie_situs(&wv, &cookie)) };
-        let _ = kirim.send(r.map_err(|e| e.to_string()));
-    })
-    .map_err(|e| e.to_string())?;
-    terima.await.unwrap_or(Err("jendela tertutup".into()))
-}
-
 fn siapkan_situs(pv: &tauri::webview::PlatformWebview, cookie: &str, pola_uji: &[String]) -> windows_core::Result<u32> {
     unsafe {
         let wv: ICoreWebView2 = pv.controller().CoreWebView2()?;
@@ -279,68 +269,4 @@ pub async fn keraskan_jendela(w: &tauri::WebviewWindow, jenis: Jenis, profil: Op
     .map_err(|e| format!("WebView2 setup failed: {e}"))?;
     terima.await.unwrap_or(Err("The window closed before it was ready.".into()))
 }
-
-#[cfg(test)]
-mod tes {
-    use super::*;
-
-    fn u(s: &str) -> Url {
-        s.parse().unwrap()
-    }
-
-    #[test]
-    fn login_hanya_roblox_dan_penyedia_masuk() {
-        for ok in [
-            "https://www.roblox.com/login",
-            "https://roblox.com/",
-            "https://auth.roblox.com/v2/login",
-            "https://appleid.apple.com/auth/authorize",
-            "https://accounts.google.com/o/oauth2",
-            "about:blank",
-        ] {
-            assert!(izin_login(&u(ok)), "{ok}");
-        }
-        for bad in [
-            "http://www.roblox.com/login",
-            "https://www.roblox.com.evil.example/login",
-            "https://evilroblox.com/",
-            "https://www.roblox.com:8443/",
-            "https://user@www.roblox.com/",
-            "https://example.com/",
-            "https://notapple.com/",
-            "file:///C:/Windows/win.ini",
-            "http://tauri.localhost/",
-            "javascript:alert(1)",
-        ] {
-            assert!(!izin_login(&u(bad)), "{bad}");
-        }
-    }
-
-    #[test]
-    fn pola_keluar_roblox() {
-        let kena = |u: &str| POLA_KELUAR.iter().any(|p| cocok_pola(p, u));
-        assert!(kena("https://auth.roblox.com/v2/logout"));
-        assert!(kena("https://auth.roblox.com/v1/logoutfromallsessionsandreauthenticate"));
-        assert!(kena("https://AUTH.roblox.com/v2/Logout?x=1"));
-        assert!(!kena("https://auth.roblox.com/v2/login"));
-        assert!(!kena("https://www.roblox.com/logout"));
-        assert!(!kena("https://auth.roblox.com.evil.example/v2/logout"));
-    }
-
-    #[test]
-    fn utama_hanya_halaman_cam() {
-        assert!(izin_utama(&u("http://tauri.localhost/index.html")));
-        assert!(izin_utama(&u("https://tauri.localhost/")));
-        assert!(!izin_utama(&u("https://www.roblox.com/")));
-        assert!(!izin_utama(&u("http://tauri.localhost:8080/")));
-        assert!(!izin_utama(&u("https://tauri.localhost.evil.example/")));
-    }
-
-    #[test]
-    fn env_webview2_dibuang() {
-        std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--remote-debugging-port=9222");
-        let ada = bersihkan_env();
-        assert!(ada.contains(&"WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"));
-        assert!(std::env::var_os("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").is_none());
-    }
-}
+

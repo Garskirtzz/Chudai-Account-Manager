@@ -136,82 +136,6 @@ fn indeks_tipe(tabel: &[u8], pid_kita: usize, h_event: usize, h_mutex: usize) ->
     (ev, mu)
 }
 
-fn gerbang_single_instance(nama: &str) -> bool {
-    nama.contains("ROBLOX_singleton")
-}
-
-pub fn daftar_nama_objek() -> Vec<String> {
-    let pids = crate::launcher::pid_klien();
-    let mut hasil = Vec::new();
-    if pids.is_empty() {
-        return hasil;
-    }
-
-    let (h_ev, h_mu) = unsafe {
-        (
-            CreateEventW(std::ptr::null_mut(), 0, 0, std::ptr::null()),
-            CreateMutexW(std::ptr::null_mut(), 0, std::ptr::null()),
-        )
-    };
-    let Some(tabel) = tabel_handle() else { return hasil };
-    let pid_kita = std::process::id() as usize;
-    let (tipe_ev, tipe_mu) = indeks_tipe(&tabel, pid_kita, h_ev as usize, h_mu as usize);
-    unsafe {
-        CloseHandle(h_ev);
-        CloseHandle(h_mu);
-    }
-
-    let header = unsafe { &*(tabel.as_ptr() as *const HandleInfoHeader) };
-    let entri = unsafe {
-        std::slice::from_raw_parts(
-            tabel.as_ptr().add(std::mem::size_of::<HandleInfoHeader>()) as *const HandleEntry,
-            header.jumlah,
-        )
-    };
-    let kita = unsafe { GetCurrentProcess() };
-
-    for &pid in &pids {
-        let proc = unsafe { OpenProcess(PROCESS_DUP_HANDLE, 0, pid) };
-        if proc.is_null() {
-            continue;
-        }
-        for e in entri {
-            if e.pid != pid as usize {
-                continue;
-            }
-            let tipe = if e.object_type_index == tipe_ev {
-                "Event"
-            } else if e.object_type_index == tipe_mu {
-                "Mutant"
-            } else {
-                continue;
-            };
-            let mut salinan: *mut c_void = std::ptr::null_mut();
-            let ok = unsafe {
-                DuplicateHandle(proc, e.handle as *mut c_void, kita, &mut salinan, 0, 0,
-                                DUPLICATE_SAME_ACCESS)
-            };
-            if ok == 0 || salinan.is_null() {
-                continue;
-            }
-            if let Some(n) = nama_objek(salinan) {
-                if !n.is_empty() {
-                    hasil.push(format!("[{tipe}] {n}"));
-                }
-            }
-            unsafe { CloseHandle(salinan) };
-        }
-        unsafe { CloseHandle(proc) };
-    }
-    hasil.sort();
-    hasil.dedup();
-    hasil
-}
-
-pub fn tutup_handle_roblox() -> usize {
-    tutup_handle(gerbang_single_instance)
-}
-
 pub fn ambil_alih() -> usize {
     tutup_handle(|n| n == "ROBLOX_singletonEvent" || n.ends_with("\\ROBLOX_singletonEvent"))
 }
@@ -329,15 +253,4 @@ extern "system" {
     ) -> *mut c_void;
     fn CreateMutexW(attrs: *mut c_void, owner: i32, name: *const u16) -> *mut c_void;
 }
-
-#[cfg(test)]
-mod tes {
-    #[test]
-    fn ambil_alih_hanya_event() {
-        let pilih = |n: &str| n == "ROBLOX_singletonEvent" || n.ends_with("\\ROBLOX_singletonEvent");
-        assert!(pilih(r"\Sessions\1\BaseNamedObjects\ROBLOX_singletonEvent"));
-        assert!(!pilih(r"\Sessions\1\BaseNamedObjects\ROBLOX_singletonMutex"));
-        assert!(!pilih(r"\Sessions\1\BaseNamedObjects\ROBLOX_SingletonEvent"), "beda huruf = objek lain");
-        assert!(!pilih(r"\Sessions\1\BaseNamedObjects\xROBLOX_singletonEvent"));
-    }
-}
+

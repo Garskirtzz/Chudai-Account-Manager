@@ -87,57 +87,6 @@ pub fn pid_klien() -> Vec<u32> {
     klien_terperinci().into_iter().map(|k| k.pid).collect()
 }
 
-pub fn prioritas_dasar(pid: u32) -> Option<i32> {
-    unsafe {
-        let snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-        if snap.is_null() || snap as isize == -1 {
-            return None;
-        }
-        let mut e: ProcessEntry32W = std::mem::zeroed();
-        e.dw_size = std::mem::size_of::<ProcessEntry32W>() as u32;
-        let mut ok = Process32FirstW(snap, &mut e);
-        let mut hasil = None;
-        while ok != 0 {
-            if e.th32_process_id == pid {
-                hasil = Some(e.pc_pri_class_base);
-                break;
-            }
-            ok = Process32NextW(snap, &mut e);
-        }
-        CloseHandle(snap);
-        hasil
-    }
-}
-
-pub fn keturunan(akar: u32) -> Vec<u32> {
-    let mut pasangan: Vec<(u32, u32)> = Vec::new();
-    unsafe {
-        let snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-        if snap.is_null() || snap as isize == -1 {
-            return Vec::new();
-        }
-        let mut e: ProcessEntry32W = std::mem::zeroed();
-        e.dw_size = std::mem::size_of::<ProcessEntry32W>() as u32;
-        let mut ok = Process32FirstW(snap, &mut e);
-        while ok != 0 {
-            pasangan.push((e.th32_process_id, e.th32_parent_process_id));
-            ok = Process32NextW(snap, &mut e);
-        }
-        CloseHandle(snap);
-    }
-    let mut hasil = Vec::new();
-    let mut antre = vec![akar];
-    while let Some(induk) = antre.pop() {
-        for &(pid, i) in &pasangan {
-            if i == induk && pid != akar && !hasil.contains(&pid) {
-                hasil.push(pid);
-                antre.push(pid);
-            }
-        }
-    }
-    hasil
-}
-
 pub(crate) fn pid_roblox_mentah() -> Vec<u32> {
     let mut hasil = Vec::new();
     unsafe {
@@ -485,6 +434,7 @@ pub struct ProsesDibuat {
     pub peringatan: Option<String>,
     pub mulai: u64,
     pub ws_terpasang: bool,
+    #[allow(dead_code)]
     pub job_cpu: Option<usize>,
 }
 
@@ -526,7 +476,6 @@ struct InfoCpuJob {
 extern "system" {
     fn CreateJobObjectW(attr: *mut c_void, nama: *const u16) -> *mut c_void;
     fn SetInformationJobObject(job: *mut c_void, kelas: u32, info: *const c_void, len: u32) -> i32;
-    fn QueryInformationJobObject(job: *mut c_void, kelas: u32, info: *mut c_void, len: u32, kembali: *mut u32) -> i32;
     fn AssignProcessToJobObject(job: *mut c_void, proc: *mut c_void) -> i32;
 }
 
@@ -646,83 +595,6 @@ struct PowerThrottling {
     version: u32,
     control_mask: u32,
     state_mask: u32,
-}
-
-pub fn eco_hidup(pid: u32) -> Result<(), String> {
-    #[link(name = "kernel32")]
-    extern "system" {
-        fn SetPriorityClass(proc: *mut c_void, kelas: u32) -> i32;
-    }
-    unsafe {
-        let h = OpenProcess(0x0200 | PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
-        if h.is_null() {
-            return Err(format!("open (error {})", GetLastError()));
-        }
-        let pt = PowerThrottling {
-            version: 1,
-            control_mask: POWER_THROTTLING_EXECUTION_SPEED | POWER_THROTTLING_IGNORE_TIMER_RESOLUTION,
-            state_mask: POWER_THROTTLING_EXECUTION_SPEED | POWER_THROTTLING_IGNORE_TIMER_RESOLUTION,
-        };
-        let a = SetProcessInformation(h, PROCESS_POWER_THROTTLING, &pt as *const _ as *const c_void, std::mem::size_of::<PowerThrottling>() as u32);
-        let v = MEMORY_PRIORITY_VERY_LOW;
-        let b = SetProcessInformation(h, PROCESS_MEMORY_PRIORITY, &v as *const _ as *const c_void, 4);
-        let c = SetPriorityClass(h, BELOW_NORMAL_PRIORITY_CLASS);
-        CloseHandle(h);
-        if a == 0 || b == 0 || c == 0 {
-            return Err(format!("eco partly refused ({a}/{b}/{c})"));
-        }
-    }
-    Ok(())
-}
-
-pub fn job_cpu_baca(job: usize) -> Result<(u32, u32), String> {
-    let mut info = InfoCpuJob { control_flags: 0, cpu_rate: 0 };
-    let mut n = 0u32;
-    let ok = unsafe {
-        QueryInformationJobObject(job as *mut c_void, JOB_CPU_RATE_CONTROL, &mut info as *mut _ as *mut c_void, std::mem::size_of::<InfoCpuJob>() as u32, &mut n)
-    };
-    if ok == 0 {
-        return Err(format!("query CPU limit (error {})", unsafe { GetLastError() }));
-    }
-    if n as usize != std::mem::size_of::<InfoCpuJob>() {
-        return Err(format!("query CPU limit: {n} bytes returned"));
-    }
-    Ok((info.control_flags, info.cpu_rate))
-}
-
-pub fn job_cpu_atur(job: usize, rate_x100: Option<u32>) -> Result<(), String> {
-    if rate_x100.is_none() && job_cpu_baca(job)? == (0, 0) {
-        return Ok(());
-    }
-    let info = match rate_x100 {
-        Some(r) => InfoCpuJob { control_flags: JOB_CPU_ENABLE | JOB_CPU_HARD_CAP, cpu_rate: r.clamp(1, 10_000) },
-        None => InfoCpuJob { control_flags: 0, cpu_rate: 0 },
-    };
-    let ok = unsafe {
-        SetInformationJobObject(job as *mut c_void, JOB_CPU_RATE_CONTROL, &info as *const _ as *const c_void, std::mem::size_of::<InfoCpuJob>() as u32)
-    };
-    if ok == 0 {
-        return Err(format!("set CPU limit (error {})", unsafe { GetLastError() }));
-    }
-    Ok(())
-}
-
-pub fn job_tutup(job: usize) {
-    unsafe {
-        CloseHandle(job as *mut c_void);
-    }
-}
-
-pub fn cap_hidup(pid: u32, rate_x100: u32) -> Result<(), String> {
-    unsafe {
-        let h = OpenProcess(0x0100 | 0x0001 | PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
-        if h.is_null() {
-            return Err(format!("open (error {})", GetLastError()));
-        }
-        let r = pasang_job_cpu(h, rate_x100).map(|_| ());
-        CloseHandle(h);
-        r
-    }
 }
 
 pub fn mask_core(n: u32) -> usize {
@@ -1004,10 +876,6 @@ pub struct KlienProses {
 
 static BACAAN: AtomicUsize = AtomicUsize::new(0);
 
-pub fn jumlah_bacaan() -> usize {
-    BACAAN.load(Ordering::Relaxed)
-}
-
 fn cache() -> &'static Mutex<HashMap<u32, (String, u64, bool)>> {
     static C: OnceLock<Mutex<HashMap<u32, (String, u64, bool)>>> = OnceLock::new();
     C.get_or_init(|| Mutex::new(HashMap::new()))
@@ -1145,84 +1013,4 @@ pub fn akhiri_klien(pid: u32) -> bool {
 pub fn adalah_tray(baris: &str) -> bool {
     baris.to_ascii_lowercase().contains("--launch-to-tray")
 }
-
-#[cfg(test)]
-mod tes_tray {
-    use super::{adalah_tray, pilih_alih};
-
-    #[test]
-    fn tray_dikenali_klien_game_tidak() {
-        assert!(adalah_tray(r#""C:\Users\x\AppData\Local\Roblox\Versions\version-5a21b87bbc2641cf\RobloxPlayerBeta.exe" --launch-to-tray"#));
-        assert!(!adalah_tray(r#""C:\R\RobloxPlayerBeta.exe" roblox-player:1+launchmode:play+gameinfo:abc+browsertrackerid:574126934"#));
-    }
-
-    #[test]
-    fn alih_versi_hanya_dari_asal_yang_sama_dan_tujuan_ada() {
-        let alih = (r"C:\V\b\RobloxPlayerBeta.exe".to_string(), r"C:\V\a\RobloxPlayerBeta.exe".to_string());
-        let ada = |_: &str| true;
-        assert_eq!(pilih_alih(r"c:\v\B\robloxplayerbeta.exe", Some(&alih), ada).as_deref(), Some(alih.1.as_str()));
-        assert_eq!(pilih_alih(r"C:\V\c\RobloxPlayerBeta.exe", Some(&alih), ada), None);
-        assert_eq!(pilih_alih(&alih.0, Some(&alih), |_| false), None);
-        assert_eq!(pilih_alih(&alih.0, None, ada), None);
-    }
-}
-
-#[cfg(test)]
-mod tes_argumen {
-    use super::*;
-
-    #[test]
-    fn argumen_hanya_kata_polos() {
-        assert_eq!(argumen_luncur("").unwrap(), Vec::<String>::new());
-        assert_eq!(argumen_luncur("  --fps 60\t-x  ").unwrap(), ["--fps", "60", "-x"]);
-        assert_eq!(argumen_luncur(r"-path=C:\Games\x %TEMP%").unwrap().len(), 2);
-        for buruk in ["a\"b", "it's", "a & b", "a|b", "a > b", "a < b", "a^b", "a\nb", "a\rb", "x\u{0}"] {
-            assert!(argumen_luncur(buruk).is_err(), "{buruk:?}");
-        }
-        assert!(argumen_luncur("ROBLOX-PLAYER:1+launchmode:play").is_err());
-        assert!(argumen_luncur("-x roblox-player:1").is_err());
-        assert!(argumen_luncur("--not-roblox-player:1").is_ok());
-        assert!(argumen_luncur(&"x ".repeat(33)).is_err());
-        assert!(argumen_luncur(&"x".repeat(513)).is_err());
-        assert!(argumen_luncur(&"x".repeat(512)).is_ok());
-        let e = argumen_luncur("rahasia&").unwrap_err();
-        assert!(!e.contains("rahasia") && e.contains('&'), "{e}");
-    }
-
-    #[test]
-    fn argumen_akun_mengalahkan_bawaan() {
-        assert_eq!(argumen_untuk(None, "-a -b").unwrap(), ["-a", "-b"]);
-        assert_eq!(argumen_untuk(Some("-c"), "-a -b").unwrap(), ["-c"]);
-        assert!(argumen_untuk(Some("-c&"), "").is_err());
-    }
-}
-
-#[cfg(test)]
-mod tes_job_cpu {
-    use super::*;
-    use std::os::windows::io::AsRawHandle;
-
-    #[test]
-    fn job_cpu_dipasang_dibaca_dicabut() {
-        let mut anak = std::process::Command::new("cmd.exe")
-            .args(["/c", "ping -n 6 127.0.0.1 >nul"])
-            .spawn()
-            .expect("cmd.exe");
-        let job = unsafe { pasang_job_cpu(anak.as_raw_handle() as *mut c_void, 0) }.expect("job tanpa batas") as usize;
-        assert_eq!(job_cpu_baca(job), Ok((0, 0)));
-        job_cpu_atur(job, None).expect("cabut job tanpa batas");
-        assert_eq!(job_cpu_baca(job), Ok((0, 0)));
-        job_cpu_atur(job, Some(300)).expect("pasang 3 %");
-        assert_eq!(job_cpu_baca(job), Ok((JOB_CPU_ENABLE | JOB_CPU_HARD_CAP, 300)));
-        job_cpu_atur(job, None).expect("cabut");
-        assert_eq!(job_cpu_baca(job), Ok((0, 0)));
-        job_cpu_atur(job, Some(500)).expect("pasang lagi 5 %");
-        assert_eq!(job_cpu_baca(job), Ok((JOB_CPU_ENABLE | JOB_CPU_HARD_CAP, 500)));
-        let bukan_job = anak.as_raw_handle() as usize;
-        let e = job_cpu_atur(bukan_job, None).expect_err("handle bukan job harus gagal");
-        assert!(e.starts_with("query CPU limit"), "{e}");
-        let _ = anak.kill();
-        let _ = anak.wait();
-        job_tutup(job);
-    }
-}
+

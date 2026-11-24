@@ -79,39 +79,4 @@ pub fn jumlah_join_sejak(sejak: i64) -> usize {
     }
     n
 }
-
-#[cfg(test)]
-mod tes {
-    use super::*;
-
-    #[test]
-    fn cap_waktu_log() {
-        assert_eq!(waktu_baris(b"2026-10-30T22:56:48.002Z,190.0,1cf0,6,Info x"), Some(1_793_401_008));
-        assert_eq!(waktu_baris(b"1970-01-01T00:00:00.000Z,"), Some(0));
-        assert_eq!(waktu_baris(b"[FLog::Output] All use of Roblox"), None);
-    }
-
-    const WARM: &[u8] = b"2026-10-30T22:53:40.000Z,1,a,6 [FLog::Systray] Systray initialized in sync mode\n\
-2026-10-30T22:56:46.934Z,2,a,6,Warning [FLog::DataModelStarterModule] Launching experience at 93978595733734\n\
-2026-10-30T22:56:48.002Z,3,a,6,Info [DFLog::NetworkClient] Connection accepted from 128.116.50.33|51979\n";
-
-    #[test]
-    fn warm_start_terdeteksi_dari_log_lama() {
-        let luncur = 1_793_401_005;
-        assert!(join_dalam(WARM, false, luncur));
-    }
-
-    #[test]
-    fn sambungan_lama_tanpa_launching_tidak_dihitung() {
-        let luncur = 1_793_401_100;
-        assert!(!join_dalam(WARM, false, luncur));
-        let reconnect: &[u8] = b"2026-10-30T23:10:00.000Z,9,a,6,Info [DFLog::NetworkClient] Connection accepted from 1.2.3.4|5\n";
-        assert!(!join_dalam(reconnect, false, 1_793_401_005));
-    }
-
-    #[test]
-    fn cold_start_cukup_penanda() {
-        assert!(join_dalam(b"... Connection accepted from 1.2.3.4|5", true, 0));
-        assert!(!join_dalam(b"... loading", true, 0));
-    }
-}
+

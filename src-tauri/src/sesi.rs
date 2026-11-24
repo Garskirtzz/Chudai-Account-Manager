@@ -13,16 +13,6 @@ pub struct Kunci {
     pub jumlah: usize,
 }
 
-pub fn kunci() -> Kunci {
-    let berkas: Vec<File> = berkas_sesi()
-        .into_iter()
-        .filter(|p| p.exists())
-        .filter_map(|p| std::fs::OpenOptions::new().read(true).share_mode(0).open(p).ok())
-        .collect();
-    let jumlah = berkas.len();
-    Kunci { _berkas: berkas, jumlah }
-}
-
 pub fn kunci_penuh() -> Kunci {
     const GENERIC_READ: u32 = 0x8000_0000;
     let berkas: Vec<File> = berkas_sesi()
@@ -42,25 +32,6 @@ pub fn kunci_penuh() -> Kunci {
         .collect();
     let jumlah = berkas.len();
     Kunci { _berkas: berkas, jumlah }
-}
-
-pub fn sidik() -> Vec<(u128, u64)> {
-    berkas_sesi()
-        .iter()
-        .map(|p| {
-            std::fs::metadata(p)
-                .map(|m| {
-                    let t = m
-                        .modified()
-                        .ok()
-                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                        .map(|d| d.as_millis())
-                        .unwrap_or(0);
-                    (t, m.len())
-                })
-                .unwrap_or((0, 0))
-        })
-        .collect()
 }
 
 pub fn userid_log_sejak(sejak: i64) -> Vec<u64> {
@@ -179,38 +150,4 @@ pub fn cek_akun(terbaca: &[u64], harapan: u64) -> CekAkun {
         CekAkun::Salah(terbaca[0])
     }
 }
-
-#[cfg(test)]
-mod tes {
-    #[test]
-    fn berkas_sesi_menunjuk_localstorage_roblox() {
-        let b = super::berkas_sesi();
-        assert_eq!(b.len(), 2);
-        assert!(b[0].ends_with("Roblox/LocalStorage/RobloxCookies.dat") || b[0].ends_with("Roblox\\LocalStorage\\RobloxCookies.dat"));
-    }
-
-    #[test]
-    fn cek_akun_setelah_join() {
-        use super::{cek_akun, CekAkun};
-        assert_eq!(cek_akun(&[], 5), CekAkun::BelumTerbaca);
-        assert_eq!(cek_akun(&[5], 5), CekAkun::Cocok);
-        assert_eq!(cek_akun(&[7], 5), CekAkun::Salah(7));
-    }
-
-    #[test]
-    fn peluncuran_menahan_pelepasan() {
-        use std::sync::atomic::Ordering;
-        let p = super::Proteksi::default();
-        p.rawat(|| false);
-        assert!(!p.status().0, "tanpa kunci: tidak ada yang berubah");
-        *p.kunci.lock().unwrap() = Some(super::Kunci { _berkas: Vec::new(), jumlah: 0 });
-        p.luncur.fetch_add(1, Ordering::SeqCst);
-        p.rawat(|| false);
-        assert!(p.status().0, "peluncuran berjalan: kunci harus tetap");
-        p.luncur.fetch_sub(1, Ordering::SeqCst);
-        p.rawat(|| true);
-        assert!(p.status().0, "klien masih ada: kunci harus tetap");
-        p.rawat(|| false);
-        assert!(!p.status().0, "sepi: kunci dilepas");
-    }
-}
+

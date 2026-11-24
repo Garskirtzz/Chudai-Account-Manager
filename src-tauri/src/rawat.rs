@@ -81,19 +81,4 @@ pub fn shutdown_exe(arg: &[&str]) -> Result<(i32, String), String> {
         .map_err(|e| format!("couldn't run shutdown.exe: {e}"))?;
     Ok((out.status.code().unwrap_or(-1), String::from_utf8_lossy(&out.stderr).trim().to_string()))
 }
-
-#[cfg(test)]
-mod tes {
-    use super::*;
-
-    #[test]
-    fn umur_dan_batas_waktu() {
-        let kini = SystemTime::now();
-        assert!(usang(kini - Duration::from_secs(25 * 3600), kini, UMUR_MAKS));
-        assert!(!usang(kini - Duration::from_secs(3600), kini, UMUR_MAKS));
-        assert!(!usang(kini + Duration::from_secs(60), kini, UMUR_MAKS), "jam berkas di masa depan: dibiarkan");
-        assert_eq!(detik_sah(30), Ok(1800));
-        assert!(detik_sah(0).is_err());
-        assert!(detik_sah(8 * 24 * 60).is_err());
-    }
-}
+

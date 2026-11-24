@@ -96,39 +96,6 @@ unsafe extern "system" fn kumpulkan(hwnd: Hwnd, lparam: isize) -> i32 {
     1
 }
 
-pub type JendelaMentah = (usize, bool, String, String, u32, (i32, i32, i32, i32));
-
-pub fn semua_milik(pid: u32) -> Vec<JendelaMentah> {
-    struct K {
-        pid: u32,
-        v: Vec<JendelaMentah>,
-    }
-    unsafe extern "system" fn cb(hwnd: Hwnd, lparam: isize) -> i32 {
-        let k = &mut *(lparam as *mut K);
-        let mut pid = 0u32;
-        GetWindowThreadProcessId(hwnd, &mut pid);
-        if pid != k.pid {
-            return 1;
-        }
-        let mut buf = [0u16; 256];
-        let n = GetWindowTextW(hwnd, buf.as_mut_ptr(), buf.len() as i32);
-        let judul = String::from_utf16_lossy(&buf[..n.max(0) as usize]);
-        let mut kb = [0u16; 128];
-        let m = GetClassNameW(hwnd, kb.as_mut_ptr(), kb.len() as i32);
-        let kelas = String::from_utf16_lossy(&kb[..m.max(0) as usize]);
-        let mut r = Rect::default();
-        GetWindowRect(hwnd, &mut r);
-        let gaya = crate::kecil::gaya(hwnd as usize);
-        k.v.push((hwnd as usize, IsWindowVisible(hwnd) != 0, kelas, judul, gaya, (r.left, r.top, r.right - r.left, r.bottom - r.top)));
-        1
-    }
-    let mut k = K { pid, v: Vec::new() };
-    unsafe {
-        EnumWindows(cb, &mut k as *mut K as isize);
-    }
-    k.v
-}
-
 pub fn daftar() -> Vec<JendelaInfo> {
     let pid_diterima: Vec<u32> = crate::launcher::pid_klien();
     if pid_diterima.is_empty() {
@@ -383,45 +350,4 @@ pub fn susun_bertumpuk() -> Result<usize, String> {
     }
     Ok(ok)
 }
-
-pub fn susun_jendela_uji(mode: &str) -> Result<usize, String> {
-    if mode == "bertumpuk" {
-        susun_bertumpuk()
-    } else {
-        susun_kisi(0)
-    }
-}
-
-struct KumpulMentah {
-    pid_diterima: Vec<u32>,
-    hasil: Vec<(u32, bool, String)>,
-}
-
-unsafe extern "system" fn kumpulkan_mentah(hwnd: Hwnd, lparam: isize) -> i32 {
-    let k = &mut *(lparam as *mut KumpulMentah);
-    let mut pid: u32 = 0;
-    GetWindowThreadProcessId(hwnd, &mut pid);
-    if !k.pid_diterima.contains(&pid) {
-        return 1;
-    }
-    let mut buf = [0u16; 256];
-    let n = GetWindowTextW(hwnd, buf.as_mut_ptr(), buf.len() as i32);
-    k.hasil.push((
-        pid,
-        IsWindowVisible(hwnd) != 0,
-        String::from_utf16_lossy(&buf[..n.max(0) as usize]),
-    ));
-    1
-}
-
-pub fn daftar_mentah() -> (Vec<u32>, Vec<(u32, bool, String)>) {
-    let pid_diterima: Vec<u32> = crate::launcher::pid_klien();
-    let mut k = KumpulMentah {
-        pid_diterima: pid_diterima.clone(),
-        hasil: Vec::new(),
-    };
-    unsafe {
-        EnumWindows(kumpulkan_mentah, &mut k as *mut KumpulMentah as isize);
-    }
-    (pid_diterima, k.hasil)
-}
+

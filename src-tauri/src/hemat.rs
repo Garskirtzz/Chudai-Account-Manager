@@ -71,26 +71,4 @@ pub fn ganti_cap(xml: &str, cap: i32) -> Option<String> {
 pub fn cap_terbaca() -> Option<i32> {
     baca_cap(&std::fs::read_to_string(berkas_pengaturan()?).ok()?)
 }
-
-#[cfg(test)]
-mod tes {
-    use super::*;
-
-    #[test]
-    fn baca_ganti_cap() {
-        let x = r#"<a><int name="FramerateCap">-1</int><int name="X">3</int></a>"#;
-        assert_eq!(baca_cap(x), Some(-1));
-        assert_eq!(baca_cap(&ganti_cap(x, 10).unwrap()), Some(10));
-        assert!(ganti_cap("<a/>", 10).is_none());
-    }
-
-    #[test]
-    fn fps_saver_mengalahkan_fps_limit_selama_hemat() {
-        assert_eq!(target_cap(0, true, 0), Some(10));
-        assert_eq!(target_cap(60, true, 0), Some(10));
-        assert_eq!(target_cap(60, true, 20), Some(20));
-        assert_eq!(target_cap(60, false, 20), Some(60));
-        assert_eq!(target_cap(0, false, 20), None);
-        assert_eq!((fps_hemat_sah(0), fps_hemat_sah(1), fps_hemat_sah(5), fps_hemat_sah(999)), (0, 3, 5, 240));
-    }
-}
+

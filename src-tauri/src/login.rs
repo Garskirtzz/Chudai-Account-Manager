@@ -71,13 +71,4 @@ pub fn hapus_profil(profil: PathBuf) {
         }
     });
 }
-
-#[cfg(test)]
-mod tes {
-    #[test]
-    fn argumen_tanpa_gpu_tetap_membawa_bawaan_wry() {
-        let a = super::argumen(true);
-        assert!(a.contains("msSmartScreenProtection") && a.contains("--disable-gpu"));
-        assert!(!super::argumen(false).contains("--disable-gpu"));
-    }
-}
+

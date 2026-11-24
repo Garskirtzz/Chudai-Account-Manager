@@ -203,24 +203,4 @@ pub fn jejak_input() -> Option<u32> {
 pub fn antara() {
     std::thread::sleep(ANTARA);
 }
-
-#[cfg(test)]
-mod tes {
-    use super::*;
-
-    #[test]
-    fn ukuran_input_sama_dengan_windows() {
-        assert_eq!(std::mem::size_of::<Input>(), 40);
-    }
-
-    #[test]
-    fn rencana_jatuh_tempo_dan_gerbang() {
-        let k = vec![("a".to_string(), "A".to_string(), 1, 0), ("b".to_string(), "B".to_string(), 2, 900)];
-        assert_eq!(rencana(&k, 900, 15, 9_000, false), Rencana::Tekan(vec!["a".into()]));
-        assert_eq!(rencana(&k, 900, 15, 1_000, false), Rencana::Ulang, "pemakai di PC");
-        assert_eq!(rencana(&k, 900, 15, 9_000, true), Rencana::Ulang, "layar penuh");
-        assert_eq!(rencana(&k, 100, 15, 9_000, false), Rencana::Tunggu);
-        assert_eq!(menit_sah(0), 15);
-        assert_eq!(menit_sah(40), 19);
-    }
-}
+

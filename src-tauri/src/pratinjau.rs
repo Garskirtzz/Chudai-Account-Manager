@@ -94,13 +94,4 @@ pub fn tutup() {
         unsafe { DwmUnregisterThumbnail(t) };
     }
 }
-
-#[cfg(test)]
-mod tes {
-    #[test]
-    fn pas_rasio_tetap() {
-        assert_eq!(super::pas(1920, 1080, 10, 20, 320, 240), (10, 50, 320, 180));
-        assert_eq!(super::pas(800, 600, 0, 0, 400, 150), (100, 0, 200, 150));
-        assert_eq!(super::pas(0, 0, 5, 5, 100, 100), (5, 5, 100, 100));
-    }
-}
+

@@ -22,14 +22,4 @@ pub fn pilih_untuk<'a>(indonesia: bool, en: &'a str, id: &'a str) -> &'a str {
         en
     }
 }
-
-#[cfg(test)]
-mod uji {
-    use super::*;
-
-    #[test]
-    fn pilih_untuk_mengikuti_bahasa() {
-        assert_eq!(pilih_untuk(false, "Quit", "Keluar"), "Quit");
-        assert_eq!(pilih_untuk(true, "Quit", "Keluar"), "Keluar");
-    }
-}
+

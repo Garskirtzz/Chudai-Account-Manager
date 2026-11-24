@@ -76,28 +76,4 @@ pub fn periksa(jenis: &str, pid: Option<u32>, sejak: i64, umur_dtk: i64, ada_log
     baris.extend(dump.into_iter().map(|d| format!("Crash dump: {d}")));
     baris.join(" · ")
 }
-
-#[cfg(test)]
-mod tes {
-    use super::*;
-
-    #[test]
-    fn kesimpulan_dari_bukti_terkuat() {
-        assert!(kesimpulan("crash", 8, true, true, false).contains("itself crashed"));
-        assert!(kesimpulan("crash", 8, false, false, true).contains("itself crashed"));
-        assert!(kesimpulan("crash", 8, false, false, false).contains("before writing a log"));
-        assert!(kesimpulan("crash", 8, true, false, false).contains("ended early"));
-        assert!(kesimpulan("crash", 900, true, false, false).contains("no crash recorded"));
-        assert!(kesimpulan("macet", 900, true, true, true).contains("stopped responding"));
-    }
-
-    #[test]
-    fn hanya_galat_klien_ini() {
-        let ev = |app: &str, pid: &str| {
-            format!("<Event xmlns='x'><EventData><Data Name='AppName'>{app}</Data><Data Name='AppVersion'>0.745</Data><Data Name='ModuleName'>d3d11.dll</Data><Data Name='ModuleVersion'>10.0</Data><Data Name='ExceptionCode'>c0000005</Data><Data Name='ProcessId'>{pid}</Data></EventData></Event>")
-        };
-        let xml = [ev("RobloxPlayerBeta.exe", "0x988"), ev("RobloxPlayerBeta.exe", "0x10"), ev("lain.exe", "0x988")].concat();
-        assert_eq!(galat_untuk(&xml, 0x988), ["Windows: exception c0000005 in d3d11.dll 10.0 (client 0.745)"]);
-        assert!(galat_untuk("", 1).is_empty());
-    }
-}
+

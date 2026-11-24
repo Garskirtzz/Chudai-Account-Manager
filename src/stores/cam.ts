@@ -137,7 +137,6 @@ export function beriTahu(pesan: unknown, jenis: JenisLog = 'info') {
   const jam = new Date().toLocaleTimeString('en-GB', { hour12: false })
   nomorLog += 1
   const bersih = samarkanRahasia(pesan)
-  if (import.meta.env.DEV || import.meta.env.VITE_MOCK === '1') ((window as unknown as { __camPesan?: string[] }).__camPesan ??= []).push(bersih)
   set((s) => ({
     log: [...s.log.slice(-199), { id: nomorLog, jam, pesan: bersih, jenis }],
     galatBaru: jenis === 'salah' ? { n: s.galatBaru.n + 1, pesan: bersih, jam } : s.galatBaru,

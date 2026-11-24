@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.2 — 25 Nov 2026
+
+- **Only the app.** Developer measurement tools that were built into the program (hidden command-line switches) are gone from the installer and from the published source, which now holds just the app itself. Nothing you use changes.
+
 ## 0.14.1 — 24 Nov 2026
 
 - **Server details in Browse servers.** Each located server now shows its **uptime** (counting live, every second), its **place version** (marked **latest**, or older when Roblox has updated the game since that server started), and a **Full** badge; Use is off on a full server. Sort by **Oldest server** or **Newest server** and filter to **Latest version only**, all without asking Roblox again. **Copy server link** gives a link anyone can open to join that exact server. Before launching into a chosen server on an older version, Output says Roblox may move you to another one.
