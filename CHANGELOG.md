@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.14.1 — 24 Nov 2026
+
+- **Server details in Browse servers.** Each located server now shows its **uptime** (counting live, every second), its **place version** (marked **latest**, or older when Roblox has updated the game since that server started), and a **Full** badge; Use is off on a full server. Sort by **Oldest server** or **Newest server** and filter to **Latest version only**, all without asking Roblox again. **Copy server link** gives a link anyone can open to join that exact server. Before launching into a chosen server on an older version, Output says Roblox may move you to another one.
+- **Private server price in Discover.** A game's details now show whether it allows private servers and what they cost: **Free (0 Robux)**, **N Robux** or **Not allowed** (it used to say Not allowed for every game).
+- **Own launch target per account.** Give an account its own game (and server) with **Own target** in its Account tab or right-click menu; one Launch then sends every account to its own game, and the rest to the main launch target. Server choices (emptiest, pick, follow) apply within each game.
+- **Own private server for each.** A new **Server** choice in the Launch panel sends every account into its own private server in that game. Accounts that don't have one yet are listed once in a single question; when the game's private servers are **free**, CAM makes one for each (always 0 Robux). CAM never buys: when private servers cost Robux, accounts without one are skipped with a note, and a paid server whose period has ended is never turned back on.
+- **Servers › Private servers** (new tab): every private server your accounts own, in every game, grouped by game. Rename, turn off or on, allow friends, make a new invite link, copy the link, use it as the launch target (its owner gets ticked), and stop renewal of paid ones. Tick several to change them together. Roblox has no way to delete a private server, so turn it off instead.
+- Translated into Bahasa Indonesia like the rest.
+
 ## 0.14.0 — 24 Nov 2026
 
 - **Right-click menu on accounts.** Right-click an account (or press **Shift+F10**) for its actions: Launch, Details, Refresh data, Refresh cookie, Rename, FPS limit, Copy cookie, Account tools, **Move to folder** (including **New folder…**, which creates the folder with the accounts in it), Select all and Delete. On a ticked account the menu acts on every ticked account ("Launch 3 accounts", "Move 3 accounts to folder"). The **Delete** key deletes the ticked accounts, or the account row that has the keyboard focus; it always asks first. **Delete** and **Add account** now sit next to the status filter, so the action bar has room for the rest.

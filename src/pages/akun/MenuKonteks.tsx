@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
-import { CheckSquare, Copy, FolderPlus, Gauge, KeyRound, Pencil, Play, RefreshCw, Square, Trash2, UserRound, Wrench } from '@/components/ikon'
+import { CheckSquare, Copy, Crosshair, FolderPlus, Gauge, KeyRound, Pencil, Play, RefreshCw, Square, Trash2, UserRound, Wrench, X } from '@/components/ikon'
 import type { Akun, Folder } from '@/api/types'
 import { luncurSatu, luncurTerpilih } from '@/logic/luncur'
 import { IkonFolder, folderAkun } from '@/lib/folder'
-import { bukaDialog, hapusAkun, perbaruiCookie, pindahAkun, salinCookie, segarkan, setDipilih, setFokus, useCam } from '@/stores/cam'
+import { aturTargetAkun, bukaDialog, hapusAkun, pasangTargetSendiri, perbaruiCookie, pindahAkun, salinCookie, segarkan, setDipilih, setFokus, useCam } from '@/stores/cam'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,6 +90,11 @@ export function MenuKonteks({ k, folder, onTutup, onPilihSemua, semuaDipilih }: 
           </>
         ) : null}
         <DropdownMenuItem icon={<Wrench className="h-3.5 w-3.5" />} onSelect={() => { setDipilih(ids); bukaDialog({ jenis: 'alat' }) }}>Account tools…</DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem icon={<Crosshair className="h-3.5 w-3.5" />} onSelect={() => void pasangTargetSendiri(ids)}>{label('Own target: current launch target')}</DropdownMenuItem>
+        {daftar.some((a) => a.target_sendiri) ? (
+          <DropdownMenuItem icon={<X className="h-3.5 w-3.5" />} onSelect={() => void aturTargetAkun(ids, null)}>{label('Clear own target')}</DropdownMenuItem>
+        ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuSub>
           <DropdownMenuSubTrigger icon={<IkonFolder f={null} size={14} />}>{n === 1 ? 'Move to folder' : `Move ${n} accounts to folder`}</DropdownMenuSubTrigger>

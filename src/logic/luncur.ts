@@ -1,6 +1,6 @@
 import { ambilAccessCode, ambilLinkCode, ambilShareCode, api, tidur } from '@/api/api'
-import type { Akun, ParamLuncur } from '@/api/types'
-import { beriTahu, minta, muatRiwayat, nyalakanMulti, pakaiServerTersimpan, useCam, type Antrean, type StatusItem } from '@/stores/cam'
+import type { Akun, ParamLuncur, PribadiAkun, SiapPribadi } from '@/api/types'
+import { beriTahu, minta, muatRiwayat, nyalakanMulti, pakaiServerTersimpan, tanya, useCam, type Antrean, type StatusItem } from '@/stores/cam'
 
 const get = () => useCam.getState()
 const set = useCam.setState
@@ -16,17 +16,25 @@ interface Opsi {
   lewatAnggaran?: boolean
 }
 
-function paramLuncur(): ParamLuncur & { followUserId?: number } {
-  const param = get().param
+type PL = ParamLuncur & { followUserId?: number }
+
+function paramDari(t: { placeId: string | number; jobId: string; linkCode: string; gameName?: string; gameIcon?: string }): PL {
   return {
-    placeId: Number(String(param.placeId).replace(/\D/g, '')) || 0,
-    jobId: param.jobId,
-    linkCode: ambilShareCode(param.linkCode) || ambilAccessCode(param.linkCode) ? '' : ambilLinkCode(param.linkCode),
-    accessCode: ambilAccessCode(param.linkCode),
-    shareCode: ambilShareCode(param.linkCode),
-    gameName: param.gameName,
-    gameIcon: param.gameIcon,
+    placeId: Number(String(t.placeId).replace(/\D/g, '')) || 0,
+    jobId: t.jobId,
+    linkCode: ambilShareCode(t.linkCode) || ambilAccessCode(t.linkCode) ? '' : ambilLinkCode(t.linkCode),
+    accessCode: ambilAccessCode(t.linkCode),
+    shareCode: ambilShareCode(t.linkCode),
+    gameName: t.gameName,
+    gameIcon: t.gameIcon,
   }
+}
+const paramLuncur = () => paramDari(get().param)
+
+export function paramSendiri(a: Akun): PL | null {
+  const t = a.target_sendiri
+  if (!t || (!t.place_id && !t.link_code)) return null
+  return paramDari({ placeId: t.place_id, jobId: t.job_id, linkCode: t.link_code, gameName: t.game_name, gameIcon: t.game_icon })
 }
 
 async function serverSiap(p: ParamLuncur, acuan: Akun | undefined) {
@@ -34,9 +42,72 @@ async function serverSiap(p: ParamLuncur, acuan: Akun | undefined) {
   if (!acuan) return { ok: true as const }
   try {
     const h = await api.periksaServer(acuan.id, Number(p.placeId), p.jobId)
-    return h.bisa ? { ok: true as const } : { ok: false as const, pesan: h.pesan }
+    if (!h.bisa) return { ok: false as const, pesan: h.pesan }
+    if (h.versi) {
+      const terbaru = await api.versiPlaceTerbaru(acuan.id, Number(p.placeId)).catch(() => 0)
+      if (terbaru && h.versi < terbaru) beriTahu(`Server ${p.jobId.slice(0, 8)}… still runs version ${h.versi} (latest ${terbaru}). Roblox may move the accounts to another server.`, 'salah')
+    }
+    return { ok: true as const }
   } catch {
     return { ok: true as const }
+  }
+}
+
+async function siapkanSendiri(pg: PL, ag: Akun[], akses: Record<string, string>, gagal: Map<string, string>, status: (s: string) => void, sesi: object) {
+  status('Checking each account’s own private server…')
+  let siap: SiapPribadi
+  try {
+    siap = await api.siapkanPribadiSendiri(Number(pg.placeId), ag.map((a) => a.id))
+  } catch (e) {
+    for (const a of ag) gagal.set(a.id, `Own private server: ${e}`)
+    return
+  }
+  const per = new Map<string, PribadiAkun>(siap.akun.map((x) => [x.akun_id, x]))
+  const dengan = (st: PribadiAkun['status']) => ag.filter((a) => per.get(a.id)?.status === st)
+  const gratis = siap.info.harga === 0 && siap.info.diizinkan !== false
+  const buat = gratis ? dengan('tidak_ada') : []
+  const mati = dengan('mati').filter((a) => per.get(a.id)?.harga === 0)
+  if (buat.length || mati.length) {
+    const baris = [
+      ...(buat.length ? [`Create a free private server (0 Robux) for: ${buat.map((a) => a.alias).join(', ')}.`] : []),
+      ...(mati.length ? [`Turn on the inactive private server of: ${mati.map((a) => a.alias).join(', ')}.`] : []),
+    ]
+    const ya = await tanya({ judul: 'Own private servers', pesan: `${baris.join('\n')}\n\nNothing is bought: CAM only creates private servers that cost 0 Robux.`, labelYa: 'Continue and launch', pemilik: sesi })
+    for (const a of [...buat, ...mati]) {
+      if (!ya) {
+        gagal.set(a.id, 'Own private server: not created or turned on (you chose Cancel).')
+        continue
+      }
+      try {
+        if (buat.includes(a)) {
+          const h = await api.buatServerGratis(a.id, siap.universe_id, Number(pg.placeId), `CAM ${a.alias}`)
+          per.set(a.id, h)
+          beriTahu(`${a.alias}: free private server created.`, 'benar')
+        } else {
+          await api.ubahServerPribadi(a.id, per.get(a.id)!.vip_id, { aktif: true })
+          const ulang = await api.siapkanPribadiSendiri(Number(pg.placeId), [a.id])
+          if (ulang.akun[0]) per.set(a.id, ulang.akun[0])
+          beriTahu(`${a.alias}: private server turned on.`, 'benar')
+        }
+      } catch (e) {
+        gagal.set(a.id, `Own private server: ${e}`)
+      }
+    }
+  }
+  for (const a of ag) {
+    if (gagal.has(a.id)) continue
+    const x = per.get(a.id)
+    if (x?.status === 'siap') {
+      akses[a.id] = x.access_code ? `accessCode=${x.access_code}` : x.link
+      continue
+    }
+    gagal.set(a.id,
+      x?.status === 'galat' ? `Own private server: ${x.pesan}`
+        : siap.info.diizinkan === false ? 'Own private server: this game has no private servers.'
+          : siap.info.harga ? `Own private server: none yet, and one costs ${siap.info.harga} Robux in this game. CAM never buys them.`
+            : x?.status === 'mati' && x.harga !== 0 ? 'Own private server: it is turned off and is not free. Turn it on yourself in Servers › Private servers.'
+              : x?.status === 'mati' ? 'Own private server: it is turned off.'
+              : 'Own private server: none yet, and Roblox did not say what one costs.')
   }
 }
 
@@ -109,63 +180,92 @@ export async function luncurkanDaftar(daftar: Akun[], sumber: Antrean['sumber'],
       return
     }
     if (nyalakanDulu && !(await nyalakanMulti())) return
-    const p: ParamLuncur & { followUserId?: number } = target
+    const dasar: PL = target
       ? { placeId: target.placeId, jobId: target.jobId || '', linkCode: '', accessCode: '', shareCode: '', gameName: target.gameName || '', gameIcon: '' }
       : paramLuncur()
+    const sendiri = new Map<string, PL>()
+    if (!target) for (const a of daftar) { const ps = paramSendiri(a); if (ps) sendiri.set(a.id, ps) }
+    const keUtama = daftar.filter((a) => !sendiri.has(a.id))
     const acuan = daftar[0]
-    const ik = target ? { id: 0 } : await idIkuti(acuan)
+    const ik = target || !keUtama.length ? { id: 0 } : await idIkuti(acuan)
     if ('galat' in ik && ik.galat) return void beriTahu(`Launch not started: ${ik.galat}`, 'salah')
-    p.followUserId = ik.id
+    dasar.followUserId = ik.id
     if (ik.id && 'placeId' in ik) {
-      p.placeId = ik.placeId || 0
-      p.gameName = ik.game || ''
-      p.gameIcon = ''
+      dasar.placeId = ik.placeId || 0
+      dasar.gameName = ik.game || ''
+      dasar.gameIcon = ''
     }
-    if (!p.placeId && !p.shareCode && !p.followUserId) return void beriTahu('Launch not started: no game selected.', 'salah')
-    if (p.followUserId && 'nama' in ik) beriTahu(`Following ${ik.nama} into ${ik.game}.`)
-    const cek = await serverSiap(p, acuan)
-    if (!cek.ok) return void beriTahu(`Launch not started: ${cek.pesan}`, 'salah')
+    if (keUtama.length && !dasar.placeId && !dasar.shareCode && !dasar.followUserId) {
+      return void beriTahu(sendiri.size ? 'Launch not started: no game selected for the accounts without their own target.' : 'Launch not started: no game selected.', 'salah')
+    }
+    if (dasar.followUserId && 'nama' in ik) beriTahu(`Following ${ik.nama} into ${ik.game}.`)
     const param = get().param
     const jeda = Math.max(0, Number(param.jeda) || 0)
-    p.fpsSekali = target ? null : Math.round(Number(param.fps) || 0) || null
-    const umum = !target && !p.jobId && !p.linkCode && !p.accessCode && !p.shareCode && !p.followUserId
-    let sama: '' | 'pilih' | 'ikuti' = umum && daftar.length > 1 && param.sama !== 'sepi' ? param.sama || '' : ''
+    const fpsSekali = target ? null : Math.round(Number(param.fps) || 0) || null
+    const kunci = (x: PL) => [x.placeId, x.jobId, x.linkCode, x.accessCode, x.shareCode, x.followUserId || 0].join('|')
+    const grup = new Map<string, PL>()
+    const pAkun = new Map<string, PL>()
+    for (const a of daftar) {
+      const asal = sendiri.get(a.id) ?? dasar
+      const k = kunci(asal)
+      if (!grup.has(k)) grup.set(k, { ...asal, fpsSekali })
+      pAkun.set(a.id, grup.get(k)!)
+    }
+    const anggota = (pg: PL) => daftar.filter((a) => pAkun.get(a.id) === pg)
+    if (sendiri.size) beriTahu(`Own targets: ${sendiri.size} of ${daftar.length} accounts launch into their own game or server.`)
+    const gagalSendiri = new Map<string, string>()
+    for (const pg of grup.values()) {
+      const ag = anggota(pg)
+      const cek = await serverSiap(pg, ag[0])
+      if (cek.ok) continue
+      if (ag.some((a) => !sendiri.has(a.id))) return void beriTahu(`Launch not started: ${cek.pesan}`, 'salah')
+      for (const a of ag) gagalSendiri.set(a.id, `Own target: ${cek.pesan}`)
+    }
     const jobSepi: Record<string, string> = {}
-    if (umum && param.sama === 'sepi') {
-      status('Finding the emptiest servers…')
-      try {
-        const job = await api.serverSepi(Number(p.placeId), daftar.length)
-        daftar.forEach((a, i) => { if (job[i]) jobSepi[a.id] = job[i] })
-        const beda = new Set(Object.values(jobSepi)).size
-        const dapat = Object.keys(jobSepi).length
-        beriTahu(
-          !dapat ? 'Emptiest servers: no public server with room was listed, so Roblox picks the servers.'
-            : daftar.length === 1 ? `Emptiest server: ${daftar[0].alias} joins server ${Object.values(jobSepi)[0].slice(0, 8)}….`
-              : beda === daftar.length ? `Emptiest servers: each of the ${daftar.length} accounts joins its own server, fewest players first.`
-                : `Emptiest servers: only ${beda} servers had room, so some of the ${daftar.length} accounts share one.`,
-        )
-      } catch (e) {
-        beriTahu(`Emptiest servers: the server list couldn't be read (${e}), so Roblox picks the servers.`, 'salah')
-      }
-    }
-    if (sama === 'pilih') {
-      status('Finding a server with room for everyone…')
-      try {
-        const job = await api.pilihServerBersama(acuan.id, Number(p.placeId), daftar.length)
-        if (job) {
-          p.jobId = job
-          sama = ''
-          beriTahu(`Same server: all ${daftar.length} accounts join server ${job.slice(0, 8)}….`)
-        } else {
-          sama = 'ikuti'
-          beriTahu(`Same server: no server had room for all ${daftar.length} accounts, so the rest follow the first account's server.`)
+    const aksesSendiri: Record<string, string> = {}
+    const ikutiGrup = new Set<PL>()
+    for (const pg of grup.values()) {
+      const ag = anggota(pg).filter((a) => !gagalSendiri.has(a.id))
+      const umum = !target && !pg.jobId && !pg.linkCode && !pg.accessCode && !pg.shareCode && !pg.followUserId
+      if (!umum || !ag.length) continue
+      if (param.sama === 'sepi') {
+        status('Finding the emptiest servers…')
+        try {
+          const job = await api.serverSepi(Number(pg.placeId), ag.length)
+          const dapatGrup: string[] = []
+          ag.forEach((a, i) => { if (job[i]) { jobSepi[a.id] = job[i]; dapatGrup.push(job[i]) } })
+          const beda = new Set(dapatGrup).size
+          beriTahu(
+            !dapatGrup.length ? 'Emptiest servers: no public server with room was listed, so Roblox picks the servers.'
+              : ag.length === 1 ? `Emptiest server: ${ag[0].alias} joins server ${dapatGrup[0].slice(0, 8)}….`
+                : beda === ag.length ? `Emptiest servers: each of the ${ag.length} accounts joins its own server, fewest players first.`
+                  : `Emptiest servers: only ${beda} servers had room, so some of the ${ag.length} accounts share one.`,
+          )
+        } catch (e) {
+          beriTahu(`Emptiest servers: the server list couldn't be read (${e}), so Roblox picks the servers.`, 'salah')
         }
-      } catch (e) {
-        sama = 'ikuti'
-        beriTahu(`Same server: the server list couldn't be read (${e}), so the rest follow the first account's server.`, 'salah')
+      } else if (ag.length > 1 && param.sama === 'pilih') {
+        status('Finding a server with room for everyone…')
+        try {
+          const job = await api.pilihServerBersama(ag[0].id, Number(pg.placeId), ag.length)
+          if (job) {
+            pg.jobId = job
+            beriTahu(`Same server: all ${ag.length} accounts join server ${job.slice(0, 8)}….`)
+          } else {
+            ikutiGrup.add(pg)
+            beriTahu(`Same server: no server had room for all ${ag.length} accounts, so the rest follow the first account's server.`)
+          }
+        } catch (e) {
+          ikutiGrup.add(pg)
+          beriTahu(`Same server: the server list couldn't be read (${e}), so the rest follow the first account's server.`, 'salah')
+        }
+      } else if (ag.length > 1 && param.sama === 'ikuti') {
+        ikutiGrup.add(pg)
+      } else if (param.sama === 'sendiri') {
+        await siapkanSendiri(pg, ag, aksesSendiri, gagalSendiri, status, sesi)
       }
     }
-    let pemimpin: Akun | null = null
+    const pemimpin = new Set<PL>()
 
     mulaiJalan = true
     ubah((q) => ({ ...q, fase: 'running' }))
@@ -176,13 +276,22 @@ export async function luncurkanDaftar(daftar: Akun[], sumber: Antrean['sumber'],
       const a = daftar[i]
       if (sesi.batal) break
       const terakhir = i === daftar.length - 1
+      const p = pAkun.get(a.id)!
+      const gagalTarget = gagalSendiri.get(a.id)
+      if (gagalTarget) {
+        tandai(a, 'failed', gagalTarget)
+        continue
+      }
       tandai(a, 'starting')
       status(`Starting ${a.alias}…`)
       const sebelum = await aman(api.jumlahKlien, 0)
       const sejak = Math.floor(Date.now() / 1000)
 
       try {
-        const catatan = (await api.luncurkan(a.id, jobSepi[a.id] ? { ...p, jobId: jobSepi[a.id] } : p)) || ''
+        const pa: PL = aksesSendiri[a.id]
+          ? { ...paramDari({ placeId: p.placeId, jobId: '', linkCode: aksesSendiri[a.id], gameName: p.gameName, gameIcon: p.gameIcon }), fpsSekali: p.fpsSekali }
+          : jobSepi[a.id] ? { ...p, jobId: jobSepi[a.id] } : p
+        const catatan = (await api.luncurkan(a.id, pa)) || ''
         if (catatan) beriTahu(`${a.alias}: ${catatan}`, /(^| )Warning: /.test(catatan) ? 'salah' : 'info')
       } catch (e) {
         tandai(a, 'failed', String(e))
@@ -261,8 +370,9 @@ export async function luncurkanDaftar(daftar: Akun[], sumber: Antrean['sumber'],
       }
       tandai(a, 'launched')
       pace.beruntun = 0
-      if (sama === 'ikuti' && !pemimpin && !terakhir) {
-        pemimpin = a
+      const sisaGrup = daftar.slice(i + 1).some((x) => pAkun.get(x.id) === p && !gagalSendiri.has(x.id))
+      if (ikutiGrup.has(p) && !pemimpin.has(p) && sisaGrup) {
+        pemimpin.add(p)
         status(`Reading ${a.alias}'s server…`)
         let srv = null
         for (let t = 0; t < 8 && !srv && !sesi.batal; t++) {
@@ -355,6 +465,11 @@ export function batalkanSisa() {
   const sesi = sesiAktif
   if (!sesi) return
   sesi.batal = true
+  const k = get().konfirmasi
+  if (k?.batal && k.pemilik === sesi) {
+    set({ konfirmasi: null })
+    void k.batal()
+  }
   set((s) => ({
     antrean: s.antrean && s.antrean.sesi === sesi ? { ...s.antrean, batal: true } : s.antrean,
     statusLuncur: s.statusLuncur && 'Cancelling — finishing the current step…',

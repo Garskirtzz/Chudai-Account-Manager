@@ -5,7 +5,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, Earth, Loader2, Monitor, Play, RefreshCw, Search, Server, Tag, ThumbsUp, Users, X } from '@/components/ikon'
 import type { LucideIcon } from '@/components/ikon'
 import { api } from '@/api/api'
-import type { DetailGame, GameJelajah, KategoriJelajah, OpsiFilter } from '@/api/types'
+import type { DetailGame, GameJelajah, InfoPribadi, KategoriJelajah, OpsiFilter } from '@/api/types'
 import { pakaiGameJelajah, useCam } from '@/stores/cam'
 import { cn } from '@/utils/cn'
 import { Button } from '@/components/ui/Button'
@@ -36,6 +36,25 @@ function ambilDetail(universeId: number) {
     detailCache.set(universeId, p)
   }
   return p
+}
+
+const pribadiCache = new Map<number, Promise<InfoPribadi>>()
+function ambilPribadi(universeId: number, placeId: number) {
+  let p = pribadiCache.get(universeId)
+  if (!p) {
+    p = api.infoServerPribadi(universeId, placeId)
+    p.catch(() => pribadiCache.delete(universeId))
+    pribadiCache.set(universeId, p)
+  }
+  return p
+}
+
+export function teksPribadi(p: InfoPribadi | null) {
+  if (!p) return ''
+  if (p.diizinkan === false) return 'Not allowed'
+  if (p.harga === 0) return 'Free (0 Robux)'
+  if (p.harga) return `${p.harga} Robux`
+  return p.diizinkan ? 'Allowed' : 'Unknown'
 }
 
 const baca = (k: string) => { try { return localStorage.getItem(k) || '' } catch { return '' } }
@@ -842,6 +861,7 @@ function DialogGame({ awal, semua, target, onTutup, onServer }: {
 }) {
   const [g, setG] = useState(awal.g)
   const [detail, setDetail] = useState<DetailGame | null>(null)
+  const [pribadi, setPribadi] = useState<InfoPribadi | null>(null)
   const [galat, setGalat] = useState('')
   const [lebar, setLebar] = useState(false)
   const [lihat, setLihat] = useState('')
@@ -859,7 +879,9 @@ function DialogGame({ awal, semua, target, onTutup, onServer }: {
     setDetail(null)
     setGalat('')
     setLebar(false)
+    setPribadi(null)
     ambilDetail(g.universe_id).then((d) => { if (hidup) setDetail(d) }).catch((e) => { if (hidup) setGalat(String(e)) })
+    if (g.universe_id && g.place_id) ambilPribadi(g.universe_id, g.place_id).then((p) => { if (hidup) setPribadi(p) }).catch(() => { if (hidup) setPribadi({ diizinkan: null, harga: null, bisa_buat: null, batas: null }) })
     return () => { hidup = false }
   }, [g])
 
@@ -962,7 +984,7 @@ function DialogGame({ awal, semua, target, onTutup, onServer }: {
   const terpilih = target === String(g.place_id)
   const panjang = (detail?.deskripsi.length ?? 0) > 420
   const gambar = detail?.gambar ?? []
-  const tags = [detail?.genre || g.genre, detail?.subgenre, detail?.server_pribadi ? 'Private servers' : '', detail?.harga ? `${detail.harga} Robux` : ''].filter(Boolean) as string[]
+  const tags = [detail?.genre || g.genre, detail?.subgenre, pribadi?.harga === 0 ? 'Free private servers' : pribadi?.diizinkan ? 'Private servers' : '', detail?.harga ? `${detail.harga} Robux` : ''].filter(Boolean) as string[]
 
   return (
     <DialogPrimitive.Root open onOpenChange={(v) => { if (!v) tutup() }}>
@@ -984,7 +1006,7 @@ function DialogGame({ awal, semua, target, onTutup, onServer }: {
             </div>
             <dl className="jl-fakta">
               <div><dt>Max players</dt><dd>{detail ? detail.max_players || '—' : kosong}</dd></div>
-              <div><dt>Private servers</dt><dd>{detail ? (detail.server_pribadi ? 'Allowed' : 'Not allowed') : kosong}</dd></div>
+              <div><dt>Private servers</dt><dd data-pribadi>{pribadi ? teksPribadi(pribadi) : kosong}</dd></div>
               {detail?.harga ? <div><dt>Paid access</dt><dd>{`${detail.harga} Robux`}</dd></div> : null}
               <div><dt>Updated</dt><dd>{detail ? tanggal(detail.diperbarui) : kosong}</dd></div>
               <div><dt>Created</dt><dd>{detail ? tanggal(detail.dibuat) : kosong}</dd></div>

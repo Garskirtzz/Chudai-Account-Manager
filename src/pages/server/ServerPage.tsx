@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Bookmark, Check, ChevronDown, ChevronRight, Loader2, Lock, MapPin, Pencil, RefreshCw, Sparkles, Trash2, X } from '@/components/ikon'
+import { Bookmark, Check, ChevronDown, ChevronRight, Copy, Loader2, Lock, MapPin, Pencil, RefreshCw, Sparkles, Trash2, X } from '@/components/ikon'
 import { api } from '@/api/api'
-import type { ServerInfo, ServerPribadiGabungan, ServerTersimpan } from '@/api/types'
+import type { ServerInfo, ServerPribadiGabungan, ServerTersimpan, WilayahServer } from '@/api/types'
 import { useUIStore } from '@/stores/uiStore'
-import { beriTahu, hapusServerTersimpan, pakaiServerTersimpan, pilihServer, setDipilih, ubahNamaServerTersimpan, useCam } from '@/stores/cam'
+import { beriTahu, hapusServerTersimpan, pakaiServerTersimpan, pilihServer, salinTeks, setDipilih, ubahNamaServerTersimpan, useCam } from '@/stores/cam'
 import { cn } from '@/utils/cn'
 import { useTabHalaman } from '@/components/shell/navigasi'
 import { Button } from '@/components/ui/Button'
@@ -14,16 +14,43 @@ import { PemilihGame } from '@/components/akun/PemilihGame'
 import { jenisServer } from '@/pages/akun/TabLuncur'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Jelajah } from './Jelajah'
+import { KelolaPribadi } from './KelolaPribadi'
 
 const BATAS_MUAT = 15
 
+type InfoBaris = Pick<WilayahServer, 'mulai_ms' | 'versi' | 'status'>
+
+export const tautanServer = (placeId: number | string, jobId: string) =>
+  `https://www.roblox.com/games/start?placeId=${placeId}&gameInstanceId=${jobId}`
+
+export function teksUptime(detik: number) {
+  const t = Math.max(0, Math.floor(detik))
+  const d = Math.floor(t / 86400)
+  const j = Math.floor((t % 86400) / 3600)
+  const m = Math.floor((t % 3600) / 60)
+  const dt = String(t % 60).padStart(2, '0')
+  if (d) return `${d}d ${String(j).padStart(2, '0')}:${String(m).padStart(2, '0')}:${dt}`
+  return j ? `${j}:${String(m).padStart(2, '0')}:${dt}` : `${m}:${dt}`
+}
+
+function Uptime({ mulai }: { mulai: number }) {
+  const [, setDetak] = useState(0)
+  useEffect(() => {
+    if (!mulai) return
+    const h = window.setInterval(() => setDetak((n) => n + 1), 1000)
+    return () => window.clearInterval(h)
+  }, [mulai])
+  if (!mulai) return <span className="text-content-muted" title="Roblox didn’t report when this server started.">unknown</span>
+  return <span className="tnum text-content-secondary" title={new Date(mulai).toLocaleString()} data-uptime data-mulai={mulai}>{teksUptime((Date.now() - mulai) / 1000)}</span>
+}
+
 export function ServerPage() {
   const kunciServer = useCam((s) => s.kunciServer)
-  const [tab] = useTabHalaman<'discover' | 'browse' | 'saved'>('/servers')
+  const [tab] = useTabHalaman<'discover' | 'browse' | 'saved' | 'pribadi'>('/servers')
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div key={tab} className="min-h-0 flex-1 animate-halaman overflow-y-auto bg-app">
-        {tab === 'saved' ? <ServerTersimpanBagian /> : tab === 'discover' ? <Jelajah /> : <PenjelajahServer key={kunciServer} />}
+        {tab === 'saved' ? <ServerTersimpanBagian /> : tab === 'discover' ? <Jelajah /> : tab === 'pribadi' ? <KelolaPribadi /> : <PenjelajahServer key={kunciServer} />}
       </div>
     </div>
   )
@@ -127,15 +154,19 @@ function PenjelajahServer() {
   const [memuat, setMemuat] = useState(false)
   const [galat, setGalat] = useState('')
   const [wilayah, setWilayah] = useState<Record<string, string>>({})
+  const [info, setInfo] = useState<Record<string, InfoBaris>>({})
+  const [versiTerbaru, setVersiTerbaru] = useState(0)
+  const [hanyaTerbaru, setHanyaTerbaru] = useState(false)
   const [memuatWilayah, setMemuatWilayah] = useState(false)
   const [minSlot, setMinSlot] = useState(2)
-  const [urut, setUrut] = useState<'kosong' | 'penuh' | 'ping'>('kosong')
+  const [urut, setUrut] = useState<'kosong' | 'penuh' | 'ping' | 'lama' | 'baru'>('kosong')
   const [jenis, setJenis] = useState<'publik' | 'pribadi'>('publik')
   const [filterNegara, setFilterNegara] = useState('')
   const [diambilPada, setDiambilPada] = useState(0)
   const [, setDetak] = useState(0)
   const [otomatis, setOtomatis] = useState(() => { try { return localStorage.getItem('wilayahOtomatis') === '1' } catch { return false } })
   const wilayahRef = useRef<Record<string, string>>({})
+  const infoRef = useRef<Record<string, InfoBaris>>({})
   const sesiRef = useRef(0)
   const sedangRef = useRef(false)
   const pid = Number(String(placeId).replace(/\D/g, '')) || 0
@@ -149,6 +180,10 @@ function PenjelajahServer() {
       setServers((lama) => (lanjut ? [...lama, ...h.servers] : h.servers))
       setCursor(h.cursor || '')
       setDiambilPada(Date.now())
+      if (!lanjut && akunPertama) {
+        const sesi = sesiRef.current
+        api.versiPlaceTerbaru(akunPertama.id, pid).then((v) => { if (sesi === sesiRef.current) setVersiTerbaru(v) }).catch(() => {})
+      }
       return h.servers
     } catch (e) {
       setGalat(String(e))
@@ -156,11 +191,11 @@ function PenjelajahServer() {
     } finally {
       setMemuat(false)
     }
-  }, [pid, cursor, urut, minSlot])
+  }, [pid, cursor, urut, minSlot, akunPertama])
 
   const penuhDulu = urut === 'penuh'
   useEffect(() => { if (servers.length) void muat(false) }, [penuhDulu]) 
-  useEffect(() => { setServers([]); setCursor(''); setDiambilPada(0); setFilterNegara(''); sesiRef.current += 1 }, [pid])
+  useEffect(() => { setServers([]); setCursor(''); setDiambilPada(0); setFilterNegara(''); setVersiTerbaru(0); setHanyaTerbaru(false); sesiRef.current += 1 }, [pid])
   useEffect(() => { const h = window.setInterval(() => setDetak((n) => n + 1), 5000); return () => window.clearInterval(h) }, [])
   const sudahOtomatis = useRef(false)
   useEffect(() => {
@@ -180,10 +215,16 @@ function PenjelajahServer() {
       const hasil = await api.wilayahServerBanyak(akunPertama.id, pid, perlu)
       if (sesi !== sesiRef.current) return
       const baru = { ...wilayahRef.current }
-      for (const w of hasil) baru[w.job_id] = w.wilayah || '—'
+      const infoBaru = { ...infoRef.current }
+      for (const w of hasil) {
+        baru[w.job_id] = w.wilayah || '—'
+        infoBaru[w.job_id] = { mulai_ms: w.mulai_ms || 0, versi: w.versi || 0, status: w.status ?? -1 }
+      }
       for (const j of perlu) if (baru[j] === undefined) baru[j] = '—'
       wilayahRef.current = baru
+      infoRef.current = infoBaru
       setWilayah(baru)
+      setInfo(infoBaru)
     } catch (e) {
       beriTahu(String(e), 'salah')
     } finally {
@@ -194,19 +235,26 @@ function PenjelajahServer() {
 
   const sisaWilayah = useMemo(() => servers.filter((s) => wilayah[s.job_id] === undefined).length, [servers, wilayah])
   const ubahOtomatis = (v: boolean) => { setOtomatis(v); try { localStorage.setItem('wilayahOtomatis', v ? '1' : '0') } catch {  } }
-  const urutan = { kosong: (a: ServerInfo, b: ServerInfo) => a.playing - b.playing, penuh: (a: ServerInfo, b: ServerInfo) => b.playing - a.playing, ping: (a: ServerInfo, b: ServerInfo) => (a.ping || 999) - (b.ping || 999) }
+  const mulai = (s: ServerInfo) => info[s.job_id]?.mulai_ms || 0
+  const menurutUmur = (tua: boolean) => (a: ServerInfo, b: ServerInfo) => {
+    const x = mulai(a), y = mulai(b)
+    if (!x || !y) return (x ? 0 : 1) - (y ? 0 : 1)
+    return tua ? x - y : y - x
+  }
+  const urutan = { kosong: (a: ServerInfo, b: ServerInfo) => a.playing - b.playing, penuh: (a: ServerInfo, b: ServerInfo) => b.playing - a.playing, ping: (a: ServerInfo, b: ServerInfo) => (a.ping || 999) - (b.ping || 999), lama: menurutUmur(true), baru: menurutUmur(false) }
 
   const terlihat = useMemo(() => {
     const q = filterNegara.trim().toLowerCase()
     const f = servers.filter((s) => {
       if (s.max_players - s.playing < minSlot) return false
+      if (hanyaTerbaru && versiTerbaru && info[s.job_id]?.versi !== versiTerbaru) return false
       if (!q) return true
       const w = wilayah[s.job_id]
       if (!w || w === '—') return false
       return w.split(',').pop()!.trim().toLowerCase() === q
     })
     return [...f].sort(urutan[urut])
-  }, [servers, minSlot, urut, filterNegara, wilayah]) 
+  }, [servers, minSlot, urut, filterNegara, wilayah, info, hanyaTerbaru, versiTerbaru]) 
 
   useEffect(() => { if (servers.length && otomatis) void muatWilayah([...servers].sort(urutan[urut])) }, [servers, urut, muatWilayah, otomatis]) 
 
@@ -280,7 +328,11 @@ function PenjelajahServer() {
             </label>
             <label className="flex items-center gap-2">
               Sort
-              <Select value={urut} onValueChange={(v) => setUrut(v as typeof urut)} size="sm" ariaLabel="Sort servers" className="w-40" options={[{ value: 'kosong', label: 'Emptiest' }, { value: 'penuh', label: 'Fullest' }, { value: 'ping', label: 'Lowest ping' }]} />
+              <Select value={urut} onValueChange={(v) => setUrut(v as typeof urut)} size="sm" ariaLabel="Sort servers" className="w-44" options={[{ value: 'kosong', label: 'Emptiest' }, { value: 'penuh', label: 'Fullest' }, { value: 'ping', label: 'Lowest ping' }, { value: 'lama', label: 'Oldest server' }, { value: 'baru', label: 'Newest server' }]} />
+            </label>
+            <label className="flex items-center gap-2" title={versiTerbaru ? `Show only located servers running version ${versiTerbaru}.` : 'Load servers first: the latest version is read with the list.'}>
+              <Checkbox className="h-5 w-5" checked={hanyaTerbaru} disabled={!versiTerbaru} onCheckedChange={(v) => setHanyaTerbaru(v === true)} aria-label="Latest version only" />
+              Latest version only
             </label>
           </div>
           {servers.length ? (
@@ -296,7 +348,7 @@ function PenjelajahServer() {
           ) : !terlihat.length ? (
             <EmptyState icon={MapPin} title={!pid ? 'Pick a game above, then load its servers.' : !servers.length ? 'No servers loaded yet' : filterNegara ? `No server in ${filterNegara} has that many free slots.` : 'No server has that many free slots. Lower the number above.'} description={pid && !servers.length ? 'Press Load servers.' : undefined} />
           ) : (
-            <TabelServer servers={terlihat} wilayah={wilayah} onPilih={pilih} onLokasi={(s) => void muatWilayah([s], 1, true)} />
+            <TabelServer servers={terlihat} wilayah={wilayah} info={info} versiTerbaru={versiTerbaru} placeId={pid} onPilih={pilih} onLokasi={(s) => void muatWilayah([s], 1, true)} />
           )}
 
           {servers.length ? (
@@ -312,29 +364,43 @@ function PenjelajahServer() {
   )
 }
 
-function TabelServer({ servers, wilayah, onPilih, onLokasi }: { servers: ServerInfo[]; wilayah: Record<string, string>; onPilih: (s: ServerInfo) => void; onLokasi: (s: ServerInfo) => void }) {
-  const template = 'minmax(9rem,1.2fr) minmax(8rem,1fr) 4.5rem 3.5rem minmax(7rem,1fr) 4.5rem'
+function TabelServer({ servers, wilayah, info, versiTerbaru, placeId, onPilih, onLokasi }: { servers: ServerInfo[]; wilayah: Record<string, string>; info: Record<string, InfoBaris>; versiTerbaru: number; placeId: number; onPilih: (s: ServerInfo) => void; onLokasi: (s: ServerInfo) => void }) {
+  const template = 'minmax(8.5rem,1.1fr) minmax(6rem,1fr) 5.5rem 4.75rem 3.75rem 2.5rem minmax(5.5rem,0.8fr) 5.5rem'
   return (
     <div role="grid" aria-label="Servers" className="px-3">
-      <div role="row" className="grid gap-3 border-b border-line-subtle px-2 py-2 text-xs font-medium text-content-muted" style={{ gridTemplateColumns: template }}>
-        <span>Players</span><span>Region</span><span className="text-right">Ping</span><span className="text-right">FPS</span><span>Job ID</span><span />
+      <div role="row" className="grid gap-2 border-b border-line-subtle px-2 py-2 text-xs font-medium text-content-muted" style={{ gridTemplateColumns: template }}>
+        <span>Players</span><span>Region</span><span title="How long the server has been running. Shown after the server is located.">Uptime</span><span title="Place version the server runs. Shown after the server is located.">Version</span><span className="text-right">Ping</span><span className="text-right">FPS</span><span>Job ID</span><span />
       </div>
       {servers.map((s) => {
         const isi = s.playing / Math.max(1, s.max_players)
         const bebas = s.max_players - s.playing
         const w = wilayah[s.job_id]
+        const d = info[s.job_id]
+        const penuh = bebas <= 0 || d?.status === 22
+        const lama = !!(d?.versi && versiTerbaru && d.versi < versiTerbaru)
         return (
-          <div key={s.job_id} role="row" tabIndex={0} onDoubleClick={() => onPilih(s)} onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); onPilih(s) } }} className="grid items-center gap-3 border-b border-line-subtle/70 px-2 py-2 text-sm outline-none hover:bg-surface-2/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60" style={{ gridTemplateColumns: template }}>
-            <span className="flex items-center gap-2">
-              <span className="relative h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-surface-3" aria-hidden><span className={cn('absolute inset-y-0 left-0 rounded-full', bebas <= 0 ? 'bg-error' : isi > 0.75 ? 'bg-warning' : 'bg-success')} style={{ width: `${isi * 100}%` }} /></span>
+          <div key={s.job_id} role="row" tabIndex={0} data-job={s.job_id} data-penuh={penuh ? '1' : undefined} onDoubleClick={() => { if (!penuh) onPilih(s) }} onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); if (!penuh) onPilih(s) } }} className="grid items-center gap-2 border-b border-line-subtle/70 px-2 py-2 text-sm outline-none hover:bg-surface-2/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60" style={{ gridTemplateColumns: template }}>
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="relative h-1.5 w-10 shrink-0 overflow-hidden rounded-full bg-surface-3" aria-hidden><span className={cn('absolute inset-y-0 left-0 rounded-full', penuh ? 'bg-error' : isi > 0.75 ? 'bg-warning' : 'bg-success')} style={{ width: `${penuh ? 100 : isi * 100}%` }} /></span>
               <span className="tnum text-content-primary">{s.playing}/{s.max_players}</span>
-              <span className="text-xs text-content-muted">{bebas > 0 ? `${bebas} free` : 'full'}</span>
+              {penuh ? <span className="rounded bg-error/15 px-1.5 text-xs font-medium text-error" title={d?.status === 22 ? 'Roblox answered that this server is full right now.' : undefined}>Full</span> : <span className="truncate text-xs text-content-muted">{bebas} free</span>}
             </span>
             <span className="min-w-0 truncate text-content-secondary" title={w && w !== '—' ? w : undefined}>{w ? w : <button type="button" onClick={() => onLokasi(s)} className="text-xs font-medium underline underline-offset-2 hover:text-content-primary">Locate</button>}</span>
+            <span className="min-w-0 truncate text-xs">{d ? <Uptime mulai={d.mulai_ms} /> : <span className="text-content-muted">—</span>}</span>
+            <span className="min-w-0 truncate text-xs" data-versi={d?.versi || undefined}>
+              {d?.versi ? (
+                <span className={cn('tnum', lama ? 'text-warning' : 'text-content-secondary')} title={lama ? `This server still runs version ${d.versi}; the latest is ${versiTerbaru}. Joining it can move the account to another server.` : versiTerbaru === d.versi ? 'The latest published version.' : undefined}>
+                  {d.versi}{lama ? <span> older</span> : versiTerbaru === d.versi ? <span className="text-success"> latest</span> : null}
+                </span>
+              ) : <span className="text-content-muted">—</span>}
+            </span>
             <span className={cn('tnum text-right', !s.ping ? 'text-content-muted' : s.ping < 90 ? 'text-success' : s.ping < 160 ? 'text-warning' : 'text-error')}>{s.ping ? `${s.ping} ms` : '—'}</span>
             <span className="tnum text-right text-content-secondary">{s.fps ? Math.round(s.fps) : '—'}</span>
             <span className="truncate font-mono text-xs text-content-muted" title={s.job_id}>{s.job_id.slice(0, 8)}…{s.job_id.slice(-4)}</span>
-            <Button size="sm" variant="secondary" onClick={() => onPilih(s)}>Use</Button>
+            <span className="flex items-center justify-end gap-1">
+              <button type="button" aria-label="Copy server link" title="Copy a link others can use to join this server" onClick={() => void salinTeks('Server link', tautanServer(placeId, s.job_id))} className="flex h-8 w-8 items-center justify-center rounded text-content-muted hover:bg-surface-3 hover:text-content-primary"><Copy className="h-4 w-4" /></button>
+              <Button size="sm" variant="secondary" disabled={penuh} title={penuh ? 'This server is full.' : undefined} onClick={() => onPilih(s)}>Use</Button>
+            </span>
           </div>
         )
       })}

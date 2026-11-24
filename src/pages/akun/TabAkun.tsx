@@ -1,12 +1,12 @@
 import { atributGame } from '@/utils/namaGame'
 import { useEffect, useState, type ReactNode } from 'react'
-import { Copy, ExternalLink, Gauge, Globe, KeyRound, Pencil, RefreshCw, RotateCcw, Trash2, UserRound } from '@/components/ikon'
+import { Copy, Crosshair, ExternalLink, Gauge, Globe, KeyRound, Pencil, RefreshCw, RotateCcw, Trash2, UserRound, X } from '@/components/ikon'
 import type { Akun } from '@/api/types'
 import { FPS_SAVER, samarkan, waktuRelatif } from '@/api/api'
 import { IkonFolder, UKURAN_KECIL, folderAkun, labelKecil, labelPreset, sesuaiPreset } from '@/lib/folder'
 import { statusAkun } from '@/lib/status-akun'
 import {
-  bukaDialog, bukaSitus, hapusAkun, perbaruiCookie, pindahAkun, salinCookie, salinTeks, segarkan, setArgumen, setCatatan, setFavorit,
+  aturTargetAkun, bukaDialog, bukaSitus, hapusAkun, namaTargetSendiri, pasangTargetSendiri, perbaruiCookie, pindahAkun, salinCookie, salinTeks, segarkan, setArgumen, setCatatan, setFavorit,
   setKecil, setKualitasPenuh, setUtama, terapkanPresetFolder, ubahAfk, ubahHemat, ubahRejoin, useCam,
 } from '@/stores/cam'
 import { rejoinServer } from '@/logic/luncur'
@@ -16,7 +16,7 @@ import { Select } from '@/components/ui/Select'
 import { StatusLabel } from '@/components/ui/Badge'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { AvatarAkun, LencanaStatus, toneStatus } from '@/components/akun/bagian'
-import { Bagian } from './TabLuncur'
+import { Bagian, jenisServer } from './TabLuncur'
 
 
 function Prop({ nama, title, hint, children }: { nama: string; title?: string; hint?: string; children: ReactNode }) {
@@ -200,6 +200,18 @@ export function TabAkun() {
 
       <Bagian judul="Launch behavior">
         <div>
+          <Prop nama="Own target" title="When accounts launch together, this account joins its own game or server instead of the launch target, so one Launch can send accounts into different games." hint={a.target_sendiri ? undefined : 'Uses the launch target.'}>
+            {a.target_sendiri ? (
+              <span className="min-w-0 flex-1" data-target-sendiri>
+                <span className="block truncate" translate="no" title={namaTargetSendiri(a.target_sendiri)}>{namaTargetSendiri(a.target_sendiri)}</span>
+                <span className="block text-xs text-content-muted">{jenisServer(a.target_sendiri).teks}</span>
+              </span>
+            ) : (
+              <span className="flex-1 text-content-muted">Launch target</span>
+            )}
+            <Ikon title="Set to the current launch target" onClick={() => void pasangTargetSendiri([a.id])}><Crosshair className="h-3.5 w-3.5" /></Ikon>
+            {a.target_sendiri ? <Ikon title="Clear own target" onClick={() => void aturTargetAkun([a.id], null)}><X className="h-3.5 w-3.5" /></Ikon> : null}
+          </Prop>
           <Prop nama="FPS limit">
             <span className="flex-1">{a.hemat ? `${a.hemat_fps || 10} FPS (saver)` : a.fps_cap ? `${a.fps_cap} FPS` : 'Roblox default'}</span>
             <Ikon title={a.hemat ? 'Change FPS limit (used when resource saver is off)' : 'Change FPS limit'} onClick={() => bukaDialog({ jenis: 'fps', akun: a })}><Pencil className="h-3.5 w-3.5" /></Ikon>

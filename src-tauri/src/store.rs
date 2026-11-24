@@ -98,6 +98,8 @@ pub struct Account {
     pub kualitas_penuh: bool,
     #[serde(default)]
     pub pembatasan: Option<Pembatasan>,
+    #[serde(default)]
+    pub target_sendiri: Option<TargetLuncur>,
 }
 
 impl Account {
@@ -419,6 +421,11 @@ fn tiap_kode(v: &mut serde_json::Value, f: &dyn Fn(&str) -> Option<String>) {
     if let Some(serde_json::Value::Array(a)) = v.get_mut("server_tersimpan") {
         for s in a {
             ubah(s.get_mut("link_code"));
+        }
+    }
+    if let Some(serde_json::Value::Array(a)) = v.get_mut("accounts") {
+        for akun in a {
+            ubah(akun.get_mut("target_sendiri").and_then(|t| t.get_mut("link_code")));
         }
     }
 }
@@ -1122,6 +1129,22 @@ mod tes_kode {
         assert_eq!(kembali.target_terakhir.unwrap().link_code, "58201880850229913874098176522742");
         assert_eq!(kembali.server_tersimpan[0].link_code, "123456");
         assert_eq!(kembali.muat, StatusMuat::Baik);
+    }
+
+    #[test]
+    fn kode_target_sendiri_terenkripsi_juga() {
+        let mut s = Store::default();
+        s.accounts.push(Account {
+            id: "a".into(),
+            target_sendiri: Some(TargetLuncur { place_id: "2".into(), link_code: "accessCode=44444444-d9f8-497a-b266-7bd9d7060a4c".into(), ..Default::default() }),
+            ..Default::default()
+        });
+        let mut v = serde_json::to_value(&s).unwrap();
+        kode_ke_disk(&mut v).unwrap();
+        let disk = serde_json::to_string(&v).unwrap();
+        assert!(!disk.contains("44444444-d9f8"), "kode akses target sendiri tidak polos di disk");
+        let kembali = muat_teks(&disk, &std::env::temp_dir().join("cam-uji-kode-target-sendiri.json"));
+        assert_eq!(kembali.accounts[0].target_sendiri.as_ref().unwrap().link_code, "accessCode=44444444-d9f8-497a-b266-7bd9d7060a4c");
     }
 
     #[test]

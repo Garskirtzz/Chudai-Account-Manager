@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { api, dibatalkan, samarkan, samarkanRahasia } from '@/api/api'
-import type { Akun, Folder, InfoUpdate, ProteksiView, Riwayat, ServerTersimpan, StatusMuat, CatatanMasalah } from '@/api/types'
+import type { Akun, Folder, InfoUpdate, ProteksiView, Riwayat, ServerTersimpan, StatusMuat, CatatanMasalah, TargetLuncur } from '@/api/types'
 import { bacaLokal, folderAkun, labelPreset, tulisLokal } from '@/lib/folder'
 import { VERSI_APP } from '@/lib/rilis'
 import { pasangTema } from '@/lib/tema'
@@ -21,6 +21,8 @@ export interface Konfirmasi {
   labelYa?: string
   bahaya?: boolean
   aksi: () => unknown
+  batal?: () => unknown
+  pemilik?: object
   asal?: HTMLElement | null
 }
 
@@ -32,7 +34,7 @@ export interface ParamTarget {
   jeda: string
   gameName: string
   gameIcon: string
-  sama: '' | 'pilih' | 'ikuti' | 'sepi'
+  sama: '' | 'pilih' | 'ikuti' | 'sepi' | 'sendiri'
   fps: string
 }
 
@@ -150,7 +152,14 @@ export function asalFokus(): HTMLElement | null {
   const id = el.closest('[role=menu]')?.getAttribute('aria-labelledby')
   return (id ? document.getElementById(id) : null) ?? el
 }
-export const minta = (k: Konfirmasi) => set({ konfirmasi: { ...k, asal: k.asal ?? asalFokus() } })
+export const minta = (k: Konfirmasi) => {
+  const lama = get().konfirmasi
+  set({ konfirmasi: { ...k, asal: k.asal ?? asalFokus() } })
+  if (lama?.batal) void lama.batal()
+}
+
+export const tanya = (k: Omit<Konfirmasi, 'aksi' | 'batal'>) =>
+  new Promise<boolean>((selesai) => minta({ ...k, aksi: () => selesai(true), batal: () => selesai(false) }))
 export const bukaDialog = (dialog: Dialog) => set({ dialog })
 export const tutupDialog = () => set({ dialog: null })
 
@@ -809,6 +818,26 @@ export async function segarkanSemua() {
     `Checked ${akun.length} account${akun.length === 1 ? '' : 's'}: ${bagian.join(', ')}.`,
     n.login || n.verifikasi || n.dibatasi || n.sementara ? 'salah' : 'benar',
   )
+}
+
+export const namaTargetSendiri = (t: TargetLuncur) => t.game_name || (t.place_id ? `Place ${t.place_id}` : 'Private server link')
+
+export async function pasangTargetSendiri(ids: string[]) {
+  const p = get().param
+  if (!String(p.placeId).replace(/\D/g, '') && !p.linkCode.trim()) return void beriTahu('Pick a game or paste a private server link in the Launch panel first.', 'salah')
+  const t: TargetLuncur = { place_id: String(p.placeId), game_name: p.gameName || '', game_icon: p.gameIcon || '', job_id: p.jobId || '', link_code: p.linkCode || '', ikuti: '', jeda: '', sama: '', fps: '' }
+  await aturTargetAkun(ids, t)
+}
+
+export async function aturTargetAkun(ids: string[], t: TargetLuncur | null) {
+  const nama = ids.length === 1 ? get().akun.find((a) => a.id === ids[0])?.alias ?? '' : `${ids.length} accounts`
+  try {
+    await api.aturTargetAkun(ids, t)
+    await muat()
+    beriTahu(t ? `Own launch target for ${nama}: ${namaTargetSendiri(t)}.` : `Own launch target cleared for ${nama}.`, 'benar')
+  } catch (e) {
+    beriTahu(`Own target: ${e}`, 'salah')
+  }
 }
 
 export async function setFavorit(a: Akun, v: boolean) {

@@ -170,6 +170,14 @@ export const api = {
   daftarServerPribadiSemua: (placeId: number) => invoke<T.PribadiSemua>('daftar_server_pribadi_semua', { placeId }),
   wilayahServerBanyak: (akunId: string, placeId: number, jobIds: string[]) => invoke<T.WilayahServer[]>('wilayah_server_banyak', { akunId, placeId, jobIds }),
   periksaServer: (akunId: string, placeId: number, jobId: string) => invoke<T.PeriksaServer>('periksa_server', { akunId, placeId, jobId }),
+  siapkanPribadiSendiri: (placeId: number, akunIds: string[]) => invoke<T.SiapPribadi>('siapkan_pribadi_sendiri', { placeId, akunIds }),
+  buatServerGratis: (akunId: string, universeId: number, placeId: number, nama: string) => invoke<T.PribadiAkun>('buat_server_gratis', { akunId, universeId, placeId, nama }),
+  daftarPribadiMilikSemua: () => invoke<T.MilikSemua>('daftar_pribadi_milik_semua'),
+  detailServerPribadi: (akunId: string, vipId: number) => invoke<T.DetailVip>('detail_server_pribadi', { akunId, vipId }),
+  ubahServerPribadi: (akunId: string, vipId: number, ubah: T.PerubahanVip) => invoke<T.DetailVip>('ubah_server_pribadi', { akunId, vipId, ubah }),
+  aturTargetAkun: (ids: string[], target: T.TargetLuncur | null) => invoke<T.Akun[]>('atur_target_akun', { ids, target }),
+  versiPlaceTerbaru: (akunId: string, placeId: number) => invoke<number>('versi_place_terbaru', { akunId, placeId }),
+  infoServerPribadi: (universeId: number, placeId: number) => invoke<T.InfoPribadi>('info_server_pribadi', { universeId, placeId }),
 
   cariUser: (teks: string, akunId: string) => invoke<T.HasilCariUser>('cari_user', { teks, akunId }),
 

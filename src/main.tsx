@@ -6,6 +6,7 @@ import { mainkanIntro } from '@/components/shell/intro'
 import { ErrorBoundary, RuntimeUnavailable } from '@/components/shell/RuntimeUnavailable'
 import { bacaDensity, pasangDensity } from '@/lib/density'
 import { bacaBahasa, pasangBahasa, terjemahkan } from '@/lib/bahasa'
+import { minta, type Konfirmasi } from '@/stores/cam'
 import './styles/globals.css'
 import './styles/dropdown.css'
 
@@ -50,6 +51,7 @@ siapkanIntro()
 if (import.meta.env.DEV || import.meta.env.VITE_MOCK === '1') {
   ;(window as unknown as { __camBahasa?: (k: string) => string }).__camBahasa = pasangBahasa
   ;(window as unknown as { __camTerjemah?: (s: string) => string | null }).__camTerjemah = terjemahkan
+  ;(window as unknown as { __camMinta?: (k: Konfirmasi) => void }).__camMinta = minta
 }
 
 if (import.meta.env.PROD) {

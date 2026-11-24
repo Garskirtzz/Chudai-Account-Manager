@@ -95,10 +95,37 @@ const s = {
   jawab: {} as Record<string, unknown>,
   jawabPerId: {} as Record<string, Record<string, unknown>>,
   profilTimpa: true,
+  milik: {} as Record<string, ServerMock[]>,
+  hargaPribadi: 0 as number | null,
+  tolakNama: false,
   log: { berkas: 184, mb: 96.4, usang_berkas: 151, usang_mb: 81.2 } as T.InfoLog,
 }
+type ServerMock = T.ServerMilik & { teman: boolean; link: string }
+const universeMock = (placeId: number) => {
+  const g = GAMES.find((x) => x.place_id === placeId) ?? KATALOG_JELAJAH.find((x) => x.place_id === placeId)
+  return g ? g.universe_id : 7000000000 + (placeId % 1000000000)
+}
+const kodeMock = (vip: number) => `${String(vip).padStart(8, '0')}-d9f8-497a-b266-7bd9d7060a4c`
+const detailMock = (v: ServerMock): T.DetailVip => ({
+  vip_id: v.vip_id, nama: v.nama, aktif: v.aktif, access_code: '', link: v.link, teman: v.teman, kedaluwarsa: v.kedaluwarsa,
+  lewat: v.harga !== null && Date.parse(v.kedaluwarsa) < Date.now(), harga: v.harga ?? 0, perpanjang: v.perpanjang, place_id: v.place_id, universe_id: v.universe_id, nama_game: v.nama_game,
+})
+
+const VERSI_TERBARU = 6287
 type ProteksiCatatan = { teks: string; jenis: 'info' | 'salah' | 'benar' }
 s.riwayat = riwayatAwal(s.akun)
+{
+  const id = (alias: string) => s.akun.find((a) => a.alias === alias)?.id
+  const srv = (vip: number, nama: string, g: { place_id: number; universe_id: number; name: string }, o: Partial<ServerMock> = {}): ServerMock => ({
+    vip_id: vip, nama, place_id: g.place_id, universe_id: g.universe_id, nama_game: g.name, aktif: true, kedaluwarsa: '2126-11-24T10:05:42.317Z',
+    harga: null, perpanjang: false, pemilik_id: 0, teman: false, link: `https://www.roblox.com/share?code=MOCK${vip}&type=Server`, ...o,
+  })
+  const g2828 = { place_id: 2828, universe_id: 7000002828, name: 'Place 2828' }
+  if (id('Main')) s.milik[id('Main')!] = [srv(701, 'Main farm', GAMES[0])]
+  if (id('Alt Killer')) s.milik[id('Alt Killer')!] = [srv(702, 'Fruit grind', GAMES[1], { harga: 100, perpanjang: true, kedaluwarsa: new Date(Date.now() + 26 * 86400_000).toISOString() })]
+  if (id('Fruit Farm 3')) s.milik[id('Fruit Farm 3')!] = [srv(703, 'Night shift', g2828, { aktif: false })]
+  if (id('Fruit Farm 2')) s.milik[id('Fruit Farm 2')!] = [srv(704, 'Old paid', g2828, { aktif: false, harga: 40, kedaluwarsa: '2026-01-01T00:00:00Z' })]
+}
 s.masalah = masalahAwal(s.akun)
 s.tolakSekali.add(s.akun.find((a) => a.alias === 'Fruit Farm 4')!.id)
 
@@ -512,7 +539,79 @@ const H: Record<string, (a: Record<string, any>) => unknown> = {
     return p && detik() >= p.joinAt ? { place_id: p.placeId, job_id: p.jobId } : null
   },
   pilih_server_bersama: async () => { await tidur(700); return '9c1d4f2a-7781-4e21-9c1d-5b77a0e21c3d' },
-  periksa_server: async () => { await tidur(300); return { bisa: true, pesan: '' } },
+  periksa_server: async () => { await tidur(300); return { bisa: true, pesan: '', versi: VERSI_TERBARU } },
+  siapkan_pribadi_sendiri: async (x) => {
+    await tidur(400)
+    const place = Number(x.placeId)
+    const uni = universeMock(place)
+    const akun = (x.akunIds as string[]).map((id): T.PribadiAkun => {
+      const a = s.akun.find((y) => y.id === id)
+      const dasar = { akun_id: id, vip_id: 0, nama: '', access_code: '', link: '', harga: null, pesan: '' }
+      if (!a || a.last_error || a.pembatasan) return { ...dasar, status: 'galat', pesan: 'Roblox answered HTTP 401.' }
+      const v = (s.milik[id] || []).filter((m) => m.universe_id === uni).sort((p, q) => Number(q.aktif) - Number(p.aktif))[0]
+      if (!v) return { ...dasar, status: 'tidak_ada' }
+      const harga = v.harga ?? 0
+      return v.aktif ? { ...dasar, status: 'siap', vip_id: v.vip_id, nama: v.nama, access_code: kodeMock(v.vip_id), harga } : { ...dasar, status: 'mati', vip_id: v.vip_id, nama: v.nama, harga }
+    })
+    return { universe_id: uni, info: { diizinkan: true, harga: s.hargaPribadi, bisa_buat: true, batas: 1 }, akun }
+  },
+  buat_server_gratis: async (x) => {
+    await tidur(300)
+    if (s.hargaPribadi === null) throw 'Roblox did not say what a private server costs in this game, so none was created.'
+    if (s.hargaPribadi !== 0) throw `Private servers in this game cost ${s.hargaPribadi} Robux; CAM never buys them.`
+    const vip = 900 + Object.values(s.milik).flat().length
+    const place = Number(x.placeId)
+    const v: ServerMock = { vip_id: vip, nama: String(x.nama).slice(0, 50) || 'CAM server', place_id: place, universe_id: Number(x.universeId), nama_game: `Place ${place}`, aktif: true, kedaluwarsa: '2126-11-24T10:05:42.317Z', harga: null, perpanjang: false, pemilik_id: 0, teman: false, link: `https://www.roblox.com/share?code=MOCK${vip}&type=Server` }
+    ;(s.milik[x.akunId as string] ??= []).push(v)
+    return { akun_id: x.akunId, status: 'siap', vip_id: vip, nama: v.nama, access_code: kodeMock(vip), link: v.link, harga: 0, pesan: '' }
+  },
+  daftar_pribadi_milik_semua: async () => {
+    await tidur(400)
+    const pakai = s.akun.filter((a) => !a.last_error && !a.pembatasan)
+    if (!pakai.length) throw 'No usable account: every account is signed out or restricted by Roblox.'
+    return { akun: pakai.map((a) => ({ akun_id: a.id, servers: (s.milik[a.id] || []).map(({ teman: _t, link: _l, ...m }) => m) })), diperiksa: pakai.length, gagal: s.gagalPribadi ? [`${pakai[0].alias}: Roblox answered HTTP 500.`] : [] }
+  },
+  detail_server_pribadi: async (x) => {
+    await tidur(150)
+    const v = (s.milik[x.akunId as string] || []).find((m) => m.vip_id === Number(x.vipId))
+    if (!v) throw 'Roblox answered HTTP 404.'
+    return detailMock(v)
+  },
+  ubah_server_pribadi: async (x) => {
+    await tidur(250)
+    const v = (s.milik[x.akunId as string] || []).find((m) => m.vip_id === Number(x.vipId))
+    if (!v) throw 'Roblox answered HTTP 404.'
+    const u = x.ubah as T.PerubahanVip
+    if (u.nama !== undefined) {
+      const n = u.nama.trim()
+      if (!n || n.length > 50) throw 'A private server name needs 1 to 50 characters.'
+      if (!s.tolakNama) v.nama = n
+    }
+    if (u.aktif === true && v.harga !== null && Date.parse(v.kedaluwarsa) < Date.now()) throw `This private server's paid period has ended; turning it on could renew it for ${v.harga} Robux, and CAM never buys.`
+    if (u.aktif !== undefined) v.aktif = u.aktif
+    if (u.teman !== undefined) v.teman = u.teman
+    if (u.link_baru) v.link = `https://www.roblox.com/share?code=MOCKNEW${v.vip_id}${Date.now() % 1000}&type=Server`
+    if (u.henti_langganan) v.perpanjang = false
+    return detailMock(v)
+  },
+  atur_target_akun: (x) => {
+    const t = x.target as T.TargetLuncur | null
+    const place = t ? String(t.place_id || '').replace(/\D/g, '') : ''
+    const link = t ? String(t.link_code || '').trim() : ''
+    const baru = t && (place || link) ? { place_id: place, game_name: t.game_name || '', game_icon: t.game_icon || '', job_id: (t.job_id || '').trim(), link_code: link, ikuti: '', jeda: '', sama: '' as const, fps: '' } : null
+    const ids = x.ids as string[]
+    const kena = s.akun.filter((a) => ids.includes(a.id))
+    if (!kena.length) throw 'Account not found.'
+    for (const a of kena) a.target_sendiri = baru
+    return kena
+  },
+  versi_place_terbaru: async () => { await tidur(200); return VERSI_TERBARU },
+  info_server_pribadi: async (x) => {
+    await tidur(250)
+    const i = Math.max(0, KATALOG_JELAJAH.findIndex((v) => v.universe_id === Number(x.universeId)))
+    if (i % 4 === 0) return { diizinkan: false, harga: null, bisa_buat: null, batas: null }
+    return i % 3 === 0 ? { diizinkan: true, harga: 40, bisa_buat: true, batas: 2147483647 } : { diizinkan: true, harga: 0, bisa_buat: true, batas: 1 }
+  },
   luncurkan: async (x) => {
     const a = akun(x.id)
     if (a.pembatasan) throw `${a.alias} is restricted by Roblox and can't join games.`
@@ -645,7 +744,16 @@ const H: Record<string, (a: Record<string, any>) => unknown> = {
   wilayah_server_banyak: async (x) => {
     await tidur(900)
     const KOTA = ['Singapore, Singapore', 'Ashburn, United States', 'Frankfurt, Germany', 'Tokyo, Japan', 'Sydney, Australia', 'Amsterdam, Netherlands']
-    return (x.jobIds as string[]).slice(0, 15).map((j, i) => ({ job_id: j, wilayah: KOTA[(j.charCodeAt(0) + i) % KOTA.length] }))
+    return (x.jobIds as string[]).slice(0, 15).map((j, i) => {
+      const k = j.charCodeAt(0) + j.charCodeAt(1) + i
+      return {
+        job_id: j,
+        wilayah: KOTA[(j.charCodeAt(0) + i) % KOTA.length],
+        mulai_ms: i % 5 === 3 ? 0 : Date.now() - (600 + (k * 7919) % 86000) * 1000,
+        versi: i % 4 === 1 ? VERSI_TERBARU - 3 : VERSI_TERBARU,
+        status: i === 2 ? 22 : 2,
+      }
+    })
   },
   daftar_server_tersimpan: () => s.server,
   simpan_server_tersimpan: (x) => {

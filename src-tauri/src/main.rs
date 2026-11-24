@@ -107,6 +107,7 @@ struct AkunView {
     utama: bool,
     kualitas_penuh: bool,
     pembatasan: Option<store::Pembatasan>,
+    target_sendiri: Option<store::TargetLuncur>,
 }
 
 impl From<&Account> for AkunView {
@@ -143,6 +144,7 @@ impl From<&Account> for AkunView {
             utama: a.utama,
             kualitas_penuh: a.kualitas_penuh,
             pembatasan: a.pembatasan.clone(),
+            target_sendiri: a.target_sendiri.clone(),
         }
     }
 }
@@ -155,7 +157,7 @@ mod tes_akun_view {
     fn kolom_yang_dibaca_ui_ikut_terkirim() {
         let v = serde_json::to_value(AkunView::from(&Account::default())).unwrap();
         for k in ["id", "alias", "username", "user_id", "premium", "plus", "last_error", "hemat", "hemat_minimize",
-                  "hemat_ram_mb", "hemat_fps", "folder_id", "auto_rejoin", "anti_afk", "catatan", "favorit", "fps_cap", "server_terakhir", "mulai_kecil", "banned", "email_ok", "dua_langkah", "argumen_luncur", "utama", "kualitas_penuh", "pembatasan"] {
+                  "hemat_ram_mb", "hemat_fps", "folder_id", "auto_rejoin", "anti_afk", "catatan", "favorit", "fps_cap", "server_terakhir", "mulai_kecil", "banned", "email_ok", "dua_langkah", "argumen_luncur", "utama", "kualitas_penuh", "pembatasan", "target_sendiri"] {
             assert!(v.get(k).is_some(), "AkunView tanpa kolom {k}");
         }
     }
@@ -269,6 +271,7 @@ async fn simpan_cookie(
         argumen_luncur: None,
         utama: false,
         kualitas_penuh: false,
+        target_sendiri: None,
     };
 
     let view = AkunView::from(&akun);
@@ -2355,6 +2358,365 @@ async fn detail_game(universe_id: u64) -> Result<jelajah::DetailGame, String> {
     jelajah::detail(universe_id).await
 }
 
+fn cookie_akun_sehat(state: &AppState) -> Option<String> {
+    let s = state.store.lock().unwrap_or_else(|e| e.into_inner());
+    s.accounts
+        .iter()
+        .find(|a| a.last_error.is_empty() && a.pembatasan.is_none())
+        .and_then(|a| store::decrypt(&a.cookie_enc).ok())
+}
+
+#[tauri::command]
+async fn info_server_pribadi(
+    state: State<'_, AppState>,
+    universe_id: u64,
+    place_id: u64,
+) -> Result<roblox::InfoPribadi, String> {
+    let Some(cookie) = cookie_akun_sehat(&state) else {
+        return Ok(roblox::InfoPribadi::default());
+    };
+    Ok(roblox::info_pribadi(&cookie, universe_id, place_id).await)
+}
+
+fn akun_cookie(state: &AppState, id: &str) -> Result<(String, u64), String> {
+    let s = state.store.lock().unwrap_or_else(|e| e.into_inner());
+    let a = s.find(id).ok_or("Account not found.")?;
+    Ok((store::decrypt(&a.cookie_enc)?, a.user_id))
+}
+
+#[derive(Serialize, Clone, Default, Debug, PartialEq)]
+struct PribadiAkun {
+    akun_id: String,
+    status: String,
+    vip_id: u64,
+    nama: String,
+    access_code: String,
+    link: String,
+    harga: Option<i64>,
+    pesan: String,
+}
+
+#[derive(Serialize)]
+struct SiapPribadi {
+    universe_id: u64,
+    info: roblox::InfoPribadi,
+    akun: Vec<PribadiAkun>,
+}
+
+fn pilih_milik(daftar: &[roblox::ServerMilik], universe_id: u64, user_id: u64) -> Option<&roblox::ServerMilik> {
+    daftar
+        .iter()
+        .filter(|s| s.universe_id == universe_id && s.pemilik_id != 0 && s.pemilik_id == user_id)
+        .max_by_key(|s| s.aktif)
+}
+
+fn boleh_buat_gratis(info: &roblox::InfoPribadi) -> Result<(), String> {
+    if info.diizinkan == Some(false) {
+        return Err("This game does not allow private servers.".into());
+    }
+    match info.harga {
+        Some(0) => {}
+        Some(n) => return Err(format!("Private servers in this game cost {n} Robux; CAM never buys them.")),
+        None => return Err("Roblox did not say what a private server costs in this game, so none was created.".into()),
+    }
+    if info.bisa_buat == Some(false) {
+        return Err("Roblox says this account cannot create another private server in this game.".into());
+    }
+    Ok(())
+}
+
+async fn kode_akses(cookie: &str, place_id: u64, vip_id: u64) -> String {
+    let mut cursor = String::new();
+    for _ in 0..5 {
+        let Ok((daftar, c)) = roblox::server_pribadi(cookie, place_id, &cursor).await else { break };
+        if let Some(s) = daftar.iter().find(|s| s.vip_id == vip_id) {
+            return s.access_code.clone();
+        }
+        if c.is_empty() {
+            break;
+        }
+        cursor = c;
+    }
+    String::new()
+}
+
+fn boleh_nyalakan(d: &roblox::DetailVip, sekarang: i64) -> Result<(), String> {
+    match d.harga {
+        Some(0) => Ok(()),
+        Some(n) if n > 0 && !d.lewat && detik_iso(&d.kedaluwarsa).is_some_and(|t| t > sekarang) => Ok(()),
+        Some(n) if n > 0 => Err(format!("This private server's paid period has ended; turning it on could renew it for {n} Robux, and CAM never buys.")),
+        _ => Err("Roblox did not say what this private server costs, so it was not turned on.".into()),
+    }
+}
+
+fn detik_iso(s: &str) -> Option<i64> {
+    let b = s.as_bytes();
+    if b.len() < 20 || b[4] != b'-' || b[7] != b'-' || b[10] != b'T' || b[13] != b':' || b[16] != b':' || !s.ends_with('Z') {
+        return None;
+    }
+    let digit = |a: usize, z: usize| b[a..z].iter().all(u8::is_ascii_digit);
+    let ekor = &b[19..b.len() - 1];
+    if !digit(0, 4) || !digit(5, 7) || !digit(8, 10) || !digit(11, 13) || !digit(14, 16) || !digit(17, 19)
+        || !(ekor.is_empty() || (ekor.len() > 1 && ekor[0] == b'.' && ekor[1..].iter().all(u8::is_ascii_digit)))
+    {
+        return None;
+    }
+    let n = |a: usize, z: usize| s.get(a..z)?.parse::<i64>().ok();
+    let (th, bl, hr) = (n(0, 4)?, n(5, 7)?, n(8, 10)?);
+    let (j, m, dt) = (n(11, 13)?, n(14, 16)?, n(17, 19)?);
+    let kabisat = (th % 4 == 0 && th % 100 != 0) || th % 400 == 0;
+    let panjang = match bl {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if kabisat => 29,
+        2 => 28,
+        _ => return None,
+    };
+    if !(1..=panjang).contains(&hr) || j > 23 || m > 59 || dt > 59 {
+        return None;
+    }
+    let y = if bl <= 2 { th - 1 } else { th };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let mp = (bl + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + hr - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let hari = era * 146097 + doe - 719468;
+    Some(hari * 86400 + j * 3600 + m * 60 + dt)
+}
+
+fn sekarang_detik() -> i64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
+}
+
+async fn status_pribadi_akun(cookie: &str, user_id: u64, akun_id: &str, universe_id: u64, place_id: u64) -> PribadiAkun {
+    let dasar = PribadiAkun { akun_id: akun_id.to_string(), ..Default::default() };
+    let daftar = match roblox::pribadi_milik(cookie).await {
+        Ok(d) => d,
+        Err(e) => return PribadiAkun { status: "galat".into(), pesan: e, ..dasar },
+    };
+    let Some(s) = pilih_milik(&daftar, universe_id, user_id) else {
+        return PribadiAkun { status: "tidak_ada".into(), ..dasar };
+    };
+    match roblox::detail_vip(cookie, s.vip_id).await {
+        Ok(d) if d.aktif && !d.lewat => {
+            let kode = if d.access_code.is_empty() { kode_akses(cookie, place_id, d.vip_id).await } else { d.access_code };
+            if kode.is_empty() && d.link.is_empty() {
+                return PribadiAkun { status: "galat".into(), vip_id: d.vip_id, nama: d.nama, pesan: "Roblox gave no way to join this private server.".into(), ..dasar };
+            }
+            PribadiAkun { status: "siap".into(), vip_id: d.vip_id, nama: d.nama, access_code: kode, link: d.link, harga: d.harga, ..dasar }
+        }
+        Ok(d) => PribadiAkun { status: "mati".into(), vip_id: d.vip_id, nama: d.nama, harga: d.harga, ..dasar },
+        Err(e) => PribadiAkun { status: "galat".into(), pesan: e, ..dasar },
+    }
+}
+
+#[tauri::command]
+async fn siapkan_pribadi_sendiri(state: State<'_, AppState>, place_id: u64, akun_ids: Vec<String>) -> Result<SiapPribadi, String> {
+    let universe_id = roblox::universe_dari_place(place_id).await;
+    if universe_id == 0 {
+        return Err("Roblox did not say which game that place belongs to.".into());
+    }
+    let mut akun = Vec::new();
+    let mut info: Option<roblox::InfoPribadi> = None;
+    for (i, id) in akun_ids.iter().enumerate() {
+        if i > 0 {
+            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        }
+        let (cookie, user_id) = match akun_cookie(&state, id) {
+            Ok(x) => x,
+            Err(e) => {
+                akun.push(PribadiAkun { akun_id: id.clone(), status: "galat".into(), pesan: e, ..Default::default() });
+                continue;
+            }
+        };
+        if info.is_none() {
+            info = Some(roblox::info_pribadi(&cookie, universe_id, place_id).await);
+        }
+        akun.push(status_pribadi_akun(&cookie, user_id, id, universe_id, place_id).await);
+    }
+    Ok(SiapPribadi { universe_id, info: info.unwrap_or_default(), akun })
+}
+
+#[tauri::command]
+async fn buat_server_gratis(state: State<'_, AppState>, akun_id: String, universe_id: u64, place_id: u64, nama: String) -> Result<PribadiAkun, String> {
+    let (cookie, _) = akun_cookie(&state, &akun_id)?;
+    let info = roblox::info_pribadi(&cookie, universe_id, place_id).await;
+    boleh_buat_gratis(&info)?;
+    let nama: String = nama.trim().chars().take(50).collect();
+    let nama = if nama.is_empty() { "CAM server".to_string() } else { nama };
+    let (vip_id, kode) = roblox::buat_vip_gratis(&cookie, universe_id, &nama).await?;
+    let d = roblox::detail_vip(&cookie, vip_id).await?;
+    let kode = if kode.is_empty() { kode_akses(&cookie, place_id, vip_id).await } else { kode };
+    Ok(PribadiAkun {
+        akun_id,
+        status: if d.aktif && !(kode.is_empty() && d.link.is_empty()) { "siap" } else { "mati" }.into(),
+        vip_id,
+        nama: d.nama,
+        access_code: kode,
+        link: d.link,
+        harga: d.harga,
+        pesan: String::new(),
+    })
+}
+
+#[derive(Serialize)]
+struct MilikAkun {
+    akun_id: String,
+    servers: Vec<roblox::ServerMilik>,
+}
+
+#[derive(Serialize)]
+struct MilikSemua {
+    akun: Vec<MilikAkun>,
+    diperiksa: usize,
+    gagal: Vec<String>,
+}
+
+#[tauri::command]
+async fn daftar_pribadi_milik_semua(state: State<'_, AppState>) -> Result<MilikSemua, String> {
+    let pakai: Vec<(String, String, String)> = {
+        let s = state.store.lock().unwrap_or_else(|e| e.into_inner());
+        s.accounts
+            .iter()
+            .filter(|a| a.last_error.is_empty() && a.pembatasan.is_none())
+            .filter_map(|a| store::decrypt(&a.cookie_enc).ok().map(|c| (a.id.clone(), a.alias.clone(), c)))
+            .collect()
+    };
+    if pakai.is_empty() {
+        return Err("No usable account: every account is signed out or restricted by Roblox.".into());
+    }
+    let mut akun = Vec::new();
+    let mut gagal = Vec::new();
+    for (i, (id, alias, cookie)) in pakai.iter().enumerate() {
+        if i > 0 {
+            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        }
+        match roblox::pribadi_milik(cookie).await {
+            Ok(servers) => akun.push(MilikAkun { akun_id: id.clone(), servers }),
+            Err(e) => gagal.push(format!("{alias}: {e}")),
+        }
+    }
+    if akun.is_empty() {
+        return Err(gagal.first().cloned().unwrap_or_else(|| "Could not read any private server list.".into()));
+    }
+    Ok(MilikSemua { akun, diperiksa: pakai.len(), gagal })
+}
+
+#[tauri::command]
+async fn detail_server_pribadi(state: State<'_, AppState>, akun_id: String, vip_id: u64) -> Result<roblox::DetailVip, String> {
+    let (cookie, _) = akun_cookie(&state, &akun_id)?;
+    roblox::detail_vip(&cookie, vip_id).await
+}
+
+#[derive(serde::Deserialize, Default, Debug)]
+struct PerubahanVip {
+    #[serde(default)]
+    nama: Option<String>,
+    #[serde(default)]
+    aktif: Option<bool>,
+    #[serde(default)]
+    teman: Option<bool>,
+    #[serde(default)]
+    link_baru: Option<bool>,
+    #[serde(default)]
+    henti_langganan: Option<bool>,
+}
+
+#[tauri::command]
+async fn ubah_server_pribadi(state: State<'_, AppState>, akun_id: String, vip_id: u64, ubah: PerubahanVip) -> Result<roblox::DetailVip, String> {
+    let (cookie, _) = akun_cookie(&state, &akun_id)?;
+    if let Some(n) = ubah.nama.as_deref() {
+        let n = n.trim();
+        if n.is_empty() || n.chars().count() > 50 {
+            return Err("A private server name needs 1 to 50 characters.".into());
+        }
+        roblox::ubah_vip(&cookie, vip_id, serde_json::json!({ "name": n })).await?;
+    }
+    if let Some(a) = ubah.aktif {
+        if a {
+            boleh_nyalakan(&roblox::detail_vip(&cookie, vip_id).await?, sekarang_detik())?;
+        }
+        roblox::ubah_vip(&cookie, vip_id, serde_json::json!({ "active": a })).await?;
+    }
+    if let Some(t) = ubah.teman {
+        roblox::izin_teman_vip(&cookie, vip_id, t).await?;
+    }
+    if ubah.link_baru == Some(true) {
+        roblox::ubah_vip(&cookie, vip_id, serde_json::json!({ "newJoinCode": true })).await?;
+    }
+    if ubah.henti_langganan == Some(true) {
+        roblox::henti_langganan_vip(&cookie, vip_id).await?;
+    }
+    roblox::detail_vip(&cookie, vip_id).await
+}
+
+#[cfg(test)]
+mod tes_t045_pribadi {
+    use super::*;
+
+    fn info(diizinkan: Option<bool>, harga: Option<i64>, bisa: Option<bool>) -> roblox::InfoPribadi {
+        roblox::InfoPribadi { diizinkan, harga, bisa_buat: bisa, batas: None }
+    }
+
+    #[test]
+    fn hanya_harga_nol_yang_dibuat() {
+        assert!(boleh_buat_gratis(&info(Some(true), Some(0), Some(true))).is_ok());
+        assert!(boleh_buat_gratis(&info(None, Some(0), None)).is_ok());
+        assert!(boleh_buat_gratis(&info(Some(true), Some(40), Some(true))).unwrap_err().contains("40 Robux"));
+        assert!(boleh_buat_gratis(&info(Some(true), None, Some(true))).is_err(), "harga tidak diketahui = tidak dibuat");
+        assert!(boleh_buat_gratis(&info(Some(false), Some(0), Some(true))).is_err());
+        assert!(boleh_buat_gratis(&info(Some(true), Some(0), Some(false))).is_err());
+    }
+
+    #[test]
+    fn server_aktif_dipilih_lebih_dulu() {
+        let s = |id: u64, uni: u64, aktif: bool, pemilik: u64| roblox::ServerMilik { vip_id: id, universe_id: uni, aktif, pemilik_id: pemilik, ..Default::default() };
+        let d = vec![s(1, 9, false, 7), s(2, 9, true, 7), s(3, 8, true, 7), s(4, 9, true, 99)];
+        assert_eq!(pilih_milik(&d, 9, 7).map(|x| x.vip_id), Some(2));
+        assert_eq!(pilih_milik(&d, 5, 7), None);
+        assert_eq!(pilih_milik(&[s(1, 9, false, 7)], 9, 7).map(|x| x.aktif), Some(false));
+        assert_eq!(pilih_milik(&[s(5, 9, true, 0)], 9, 7), None);
+    }
+
+    #[test]
+    fn menyalakan_dijaga_harga_server() {
+        let kini = detik_iso("2026-11-24T00:00:00Z").unwrap();
+        let d = |harga: Option<i64>, lewat: bool, tgl: &str| roblox::DetailVip { harga, lewat, kedaluwarsa: tgl.into(), ..Default::default() };
+        let depan = "2026-12-20T08:00:00.000Z";
+        let lalu = "2026-01-01T00:00:00Z";
+        assert!(boleh_nyalakan(&d(Some(0), false, ""), kini).is_ok(), "free");
+        assert!(boleh_nyalakan(&d(Some(0), true, lalu), kini).is_ok(), "free never renews for Robux");
+        assert!(boleh_nyalakan(&d(Some(40), false, depan), kini).is_ok(), "paid period still running: nothing bought");
+        assert!(boleh_nyalakan(&d(Some(40), true, depan), kini).unwrap_err().contains("40 Robux"), "paid and marked expired");
+        assert!(boleh_nyalakan(&d(Some(40), false, lalu), kini).unwrap_err().contains("40 Robux"));
+        assert!(boleh_nyalakan(&d(Some(40), false, ""), kini).is_err());
+        assert!(boleh_nyalakan(&d(Some(40), false, "next week"), kini).is_err());
+        assert!(boleh_nyalakan(&d(Some(40), false, "2026-11-31T00:00:00Z"), kini).is_err());
+        assert!(boleh_nyalakan(&d(Some(-1), false, depan), kini).is_err(), "T45-17");
+        assert!(boleh_nyalakan(&d(None, false, depan), kini).is_err(), "unknown price");
+    }
+
+    #[test]
+    fn tanggal_iso_roblox() {
+        assert_eq!(detik_iso("1970-01-01T00:00:00Z"), Some(0));
+        assert_eq!(detik_iso("2000-03-01T00:00:00Z"), Some(951868800));
+        assert_eq!(detik_iso("2126-11-24T10:05:42.317Z"), Some(4951188342));
+        assert_eq!(detik_iso("2026-11-24"), None);
+        assert_eq!(detik_iso("2026-13-01T00:00:00Z"), None);
+        assert_eq!(detik_iso("2026-11-24T10:05:42+07:00"), None);
+        for mustahil in ["2026-02-31T00:00:00Z", "2026-02-29T00:00:00Z", "2026-04-31T00:00:00Z", "2026-11-31T00:00:00Z", "2100-02-29T00:00:00Z", "2026-11-00T00:00:00Z"] {
+            assert_eq!(detik_iso(mustahil), None, "{mustahil}");
+        }
+        assert_eq!(detik_iso("2028-02-29T00:00:00Z"), Some(1835395200), "leap day exists");
+        assert_eq!(detik_iso("2000-02-29T00:00:00Z"), Some(951782400), "2000 is a leap year");
+        for aneh in ["2026-11-24T-1:05:42Z", "2026-11-24T10:-5:42Z", "2026-11-24T10:05:-2Z", "+026-11-24T10:05:42Z", "2026-11-24T10:05:60Z", "2026-11-24T10:05:42.Z", "2026-11-24T10:05:42.3x7Z", "2026-11-24T10:05:42XZ"] {
+            assert_eq!(detik_iso(aneh), None, "{aneh}");
+        }
+        assert_eq!(detik_iso("2026-11-24T10:05:42.3Z"), detik_iso("2026-11-24T10:05:42Z"));
+    }
+}
+
 #[tauri::command]
 async fn perbarui_cookie(state: State<'_, AppState>, id: String) -> Result<AkunView, String> {
     let cookie = {
@@ -2609,6 +2971,72 @@ fn simpan_target_terakhir(state: State<AppState>, target: TargetLuncur) -> Resul
     }
     s.target_terakhir = Some(target);
     s.save()
+}
+
+fn rapikan_target_sendiri(t: Option<TargetLuncur>) -> Result<Option<TargetLuncur>, String> {
+    let Some(t) = t else { return Ok(None) };
+    let place_id: String = t.place_id.chars().filter(|c| c.is_ascii_digit()).collect();
+    let link_code = t.link_code.trim().to_string();
+    if place_id.is_empty() && link_code.is_empty() {
+        return Ok(None);
+    }
+    if place_id.len() > 20 || link_code.len() > 600 || t.job_id.len() > 80 {
+        return Err("That launch target is not valid.".into());
+    }
+    Ok(Some(TargetLuncur {
+        place_id,
+        game_name: t.game_name.chars().take(200).collect(),
+        game_icon: t.game_icon.chars().take(600).collect(),
+        job_id: t.job_id.trim().to_string(),
+        link_code,
+        ..Default::default()
+    }))
+}
+
+#[tauri::command]
+fn atur_target_akun(state: State<AppState>, ids: Vec<String>, target: Option<TargetLuncur>) -> Result<Vec<AkunView>, String> {
+    let t = rapikan_target_sendiri(target)?;
+    let mut s = state.store.lock().unwrap_or_else(|e| e.into_inner());
+    let lama: Vec<(String, Option<TargetLuncur>)> = s
+        .accounts
+        .iter()
+        .filter(|a| ids.contains(&a.id))
+        .map(|a| (a.id.clone(), a.target_sendiri.clone()))
+        .collect();
+    if lama.is_empty() {
+        return Err("Account not found.".into());
+    }
+    for a in s.accounts.iter_mut().filter(|a| ids.contains(&a.id)) {
+        a.target_sendiri = t.clone();
+    }
+    if let Err(e) = s.save() {
+        for (id, l) in lama {
+            if let Some(a) = s.accounts.iter_mut().find(|a| a.id == id) {
+                a.target_sendiri = l;
+            }
+        }
+        return Err(e);
+    }
+    Ok(s.accounts.iter().filter(|a| ids.contains(&a.id)).map(AkunView::from).collect())
+}
+
+#[cfg(test)]
+mod tes_target_sendiri {
+    use super::*;
+
+    #[test]
+    fn hanya_game_dan_server_yang_disimpan() {
+        let t = rapikan_target_sendiri(Some(TargetLuncur { place_id: " 121864768012064 ".into(), game_name: "Fish".into(), job_id: " abc ".into(), ikuti: "someone".into(), jeda: "9".into(), sama: "sepi".into(), fps: "30".into(), ..Default::default() })).unwrap().unwrap();
+        assert_eq!((t.place_id.as_str(), t.job_id.as_str()), ("121864768012064", "abc"));
+        assert!(t.ikuti.is_empty() && t.jeda.is_empty() && t.sama.is_empty() && t.fps.is_empty());
+    }
+
+    #[test]
+    fn kosong_berarti_dihapus() {
+        assert_eq!(rapikan_target_sendiri(Some(TargetLuncur::default())).unwrap(), None);
+        assert_eq!(rapikan_target_sendiri(None).unwrap(), None);
+        assert!(rapikan_target_sendiri(Some(TargetLuncur { link_code: "https://www.roblox.com/share?code=abc&type=Server".into(), ..Default::default() })).unwrap().is_some());
+    }
 }
 
 #[tauri::command]
@@ -4977,6 +5405,9 @@ fn jadwal_refresh(state: State<AppState>, id: String) -> Result<i64, String> {
 struct WilayahServer {
     job_id: String,
     wilayah: String,
+    mulai_ms: i64,
+    versi: i64,
+    status: i64,
 }
 
 const BATAS_WILAYAH: usize = 15;
@@ -4999,29 +5430,31 @@ async fn wilayah_server_banyak(
         store::decrypt(&a.cookie_enc)?
     };
 
-    let mut ip_per_job: Vec<(String, String)> = Vec::new();
+    let mut ip_per_job: Vec<(String, String, roblox::InfoServer)> = Vec::new();
     for (i, job) in job_ids.iter().take(BATAS_WILAYAH).enumerate() {
         if i > 0 {
             tokio::time::sleep(std::time::Duration::from_millis(JEDA_WILAYAH_MS)).await;
         }
-        let ip = roblox::alamat_server(&cookie, place_id, job)
-            .await
-            .unwrap_or_default();
-        ip_per_job.push((job.clone(), ip));
+        let info = roblox::info_server(&cookie, place_id, job).await;
+        let ip = info.alamat.clone().unwrap_or_default();
+        ip_per_job.push((job.clone(), ip, info));
     }
 
     let ips: Vec<String> = ip_per_job
         .iter()
-        .map(|(_, ip)| ip.clone())
+        .map(|(_, ip, _)| ip.clone())
         .filter(|ip| !ip.is_empty())
         .collect();
     let peta = roblox::wilayah_ip_banyak(&ips).await;
 
     Ok(ip_per_job
         .into_iter()
-        .map(|(job_id, ip)| WilayahServer {
+        .map(|(job_id, ip, info)| WilayahServer {
             job_id,
             wilayah: peta.get(&ip).cloned().unwrap_or_default(),
+            mulai_ms: info.mulai_ms,
+            versi: info.versi,
+            status: info.status,
         })
         .collect())
 }
@@ -5030,6 +5463,7 @@ async fn wilayah_server_banyak(
 struct PeriksaServer {
     bisa: bool,
     pesan: String,
+    versi: i64,
 }
 
 #[tauri::command]
@@ -5047,13 +5481,15 @@ async fn periksa_server(
             .ok_or("Add an account first.")?;
         store::decrypt(&a.cookie_enc)?
     };
-    let (kode, pesan) = roblox::status_join(&cookie, place_id, &job_id).await;
+    let info = roblox::info_server(&cookie, place_id, &job_id).await;
+    let (kode, pesan) = (info.status, info.pesan);
     Ok(PeriksaServer {
         bisa: kode == 2,
+        versi: info.versi,
         pesan: match kode {
             2 => String::new(),
             5 => "That server no longer exists.".into(),
-            6 => "That server is full.".into(),
+            6 | 22 => "That server is full.".into(),
             -1 => "Could not reach Roblox to check the server.".into(),
             _ if !pesan.is_empty() => pesan,
             _ => format!("Roblox refused the join (status {kode})."),
@@ -5061,6 +5497,19 @@ async fn periksa_server(
     })
 }
 
+
+#[tauri::command]
+async fn versi_place_terbaru(state: State<'_, AppState>, akun_id: String, place_id: u64) -> Result<i64, String> {
+    let cookie = {
+        let s = state.store.lock().unwrap_or_else(|e| e.into_inner());
+        let a = s
+            .find(&akun_id)
+            .or_else(|| s.accounts.first())
+            .ok_or("Add an account first.")?;
+        store::decrypt(&a.cookie_enc)?
+    };
+    Ok(roblox::versi_terbaru(&cookie, place_id).await)
+}
 
 async fn probe_pengaman(app: tauri::AppHandle) {
     use tauri::Manager;
@@ -6844,6 +7293,38 @@ fn main() {
     }
 
     let arg: Vec<String> = std::env::args().collect();
+    if let Some(i) = arg.iter().position(|a| a == "--probe-pribadi") {
+        let cari = arg.get(i + 1).cloned().unwrap_or_default().to_lowercase();
+        let place: u64 = arg.get(i + 2).and_then(|x| x.parse().ok()).unwrap_or(0);
+        let hidupkan = arg.get(i + 3).map(|x| x == "hidupkan").unwrap_or(false);
+        let s = store::Store::load();
+        let Some(ak) = s.accounts.iter().find(|a| a.alias.to_lowercase() == cari || a.username.to_lowercase() == cari) else {
+            println!("akun tidak ditemukan");
+            return;
+        };
+        let Ok(c) = store::decrypt(&ak.cookie_enc) else {
+            println!("cookie tak terbaca");
+            return;
+        };
+        let (id, user) = (ak.id.clone(), ak.user_id);
+        tauri::async_runtime::block_on(async {
+            let uid = roblox::universe_dari_place(place).await;
+            let info = roblox::info_pribadi(&c, uid, place).await;
+            println!("universe {uid}: {info:?} -> boleh buat gratis: {:?}", boleh_buat_gratis(&info));
+            let cetak = |p: &PribadiAkun| println!("status={} vip={} nama={:?} kode_akses={} link={} pesan={:?}", p.status, p.vip_id, p.nama, if p.access_code.is_empty() { "kosong" } else { "ada" }, if p.link.is_empty() { "kosong" } else { "ada" }, p.pesan);
+            let st = status_pribadi_akun(&c, user, &id, uid, place).await;
+            cetak(&st);
+            if hidupkan && st.status == "mati" {
+                let d = roblox::ubah_vip(&c, st.vip_id, serde_json::json!({ "active": true })).await;
+                println!("hidupkan: {:?}", d.map(|d| d.aktif));
+                cetak(&status_pribadi_akun(&c, user, &id, uid, place).await);
+                let d = roblox::ubah_vip(&c, st.vip_id, serde_json::json!({ "active": false })).await;
+                println!("matikan lagi: {:?}", d.map(|d| d.aktif));
+                cetak(&status_pribadi_akun(&c, user, &id, uid, place).await);
+            }
+        });
+        return;
+    }
     if let Some(i) = arg.iter().position(|a| a == "--probe-share") {
         let kode = arg.get(i + 1).cloned().unwrap_or_default();
         let s = store::Store::load();
@@ -8114,6 +8595,14 @@ fn main() {
             daftar_server,
             wilayah_server_banyak,
             periksa_server,
+            versi_place_terbaru,
+            atur_target_akun,
+            siapkan_pribadi_sendiri,
+            buat_server_gratis,
+            daftar_pribadi_milik_semua,
+            detail_server_pribadi,
+            ubah_server_pribadi,
+            info_server_pribadi,
             cari_user,
             blokir_user,
             tambah_teman,

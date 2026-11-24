@@ -157,6 +157,18 @@ export const KAMUS_RUST = {
     "CAM tidak bisa membaca berkas akunnya, jadi belum ada yang disimpan. Pilih Mulai baru di banner atas, atau pulihkan berkasnya lalu mulai ulang CAM.",
   "Folder not found.": "Folder tidak ditemukan.",
   "Account not found.": "Akun tidak ditemukan.",
+  "That launch target is not valid.": "Target peluncuran itu tidak sah.",
+  "This game does not allow private servers.": "Game ini tidak mengizinkan server pribadi.",
+  "Roblox did not say what a private server costs in this game, so none was created.": "Roblox tidak memberi tahu harga server pribadi di game ini, jadi tidak ada yang dibuat.",
+  "Roblox says this account cannot create another private server in this game.": "Roblox menyatakan akun ini tidak bisa membuat server pribadi lagi di game ini.",
+  "Roblox gave no way to join this private server.": "Roblox tidak memberi cara untuk masuk ke server pribadi ini.",
+  "Roblox did not say which game that place belongs to.": "Roblox tidak memberi tahu place itu milik game apa.",
+  "Could not read any private server list.": "Tidak ada daftar server pribadi yang bisa dibaca.",
+  "A private server name needs 1 to 50 characters.": "Nama server pribadi harus 1 sampai 50 karakter.",
+  "Could not reach Roblox.": "Tidak bisa menghubungi Roblox.",
+  "Roblox: no server was created": "Roblox: tidak ada server yang dibuat",
+  "no server was created": "tidak ada server yang dibuat",
+  "Roblox did not say what this private server costs, so it was not turned on.": "Roblox tidak memberi tahu harga server pribadi ini, jadi server tidak dinyalakan.",
   "Give the folder a name.": "Beri nama folder.",
   "Roblox did not report a current version.": "Roblox tidak melaporkan versi terkini.",
   "Roblox has an update, so this launch went through the Roblox launcher to install it first (an older client would not match what Roblox and script tools expect).":
@@ -196,6 +208,9 @@ export const KAMUS_RUST = {
 };
 
 export const POLA_RUST = [
+  [/^This private server's paid period has ended; turning it on could renew it for (\d+) Robux, and CAM never buys\.$/, "Masa berbayar server pribadi ini sudah habis; menyalakannya bisa memperpanjang dengan $1 Robux, dan CAM tidak pernah membeli."],
+  [/^Private servers in this game cost (\d+) Robux; CAM never buys them\.$/, "Server pribadi di game ini harganya $1 Robux; CAM tidak pernah membelinya."],
+  [/^Roblox: (.+)$/, "Roblox: $1"],
   [/^(.+?): ((?:Note|Warning): .+)$/, (a, c) => `${a}: ${c.split(/(?<=\.) (?=(?:Note|Warning): )/).map((x) => dalam(x)).join(" ")}`],
   [/^Note: (.+)$/, (c) => `Catatan: ${dalam(c)}`],
   [/^Warning: FPS limit not applied \((.+)\)\.$/, (e) => `Peringatan: batas FPS tidak diterapkan (${dalamTanpaTitik(e)}).`],

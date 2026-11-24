@@ -13,6 +13,11 @@ export function Konfirmasi() {
     else if (!k.asal.closest('[role=dialog], [role=alertdialog]')) kembali.current = k.asal
   }, [k])
   const tutup = () => useCam.setState({ konfirmasi: null })
+  const batal = () => {
+    const b = k?.batal
+    tutup()
+    void b?.()
+  }
   const ya = () => {
     const aksi = k?.aksi
     tutup()
@@ -20,7 +25,7 @@ export function Konfirmasi() {
   }
   const Ikon = k?.bahaya ? AlertTriangle : HelpCircle
   return (
-    <Dialog open={!!k} onOpenChange={(o) => { if (!o) tutup() }}>
+    <Dialog open={!!k} onOpenChange={(o) => { if (!o) batal() }}>
       <DialogContent
         size="sm"
         onOpenAutoFocus={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).querySelector<HTMLElement>('[data-batal]')?.focus() }}
@@ -38,7 +43,7 @@ export function Konfirmasi() {
           <DialogDescription className="whitespace-pre-line text-sm leading-relaxed text-content-secondary">{k?.pesan}</DialogDescription>
         </div>
         <DialogFooter>
-          <Button data-batal variant="ghost" size="md" onClick={tutup}>Cancel</Button>
+          <Button data-batal variant="ghost" size="md" onClick={batal}>Cancel</Button>
           <Button variant={k?.bahaya ? 'danger' : 'primary'} size="md" onClick={ya}>{k?.labelYa || 'Continue'}</Button>
         </DialogFooter>
       </DialogContent>

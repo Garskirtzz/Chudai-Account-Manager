@@ -149,16 +149,17 @@ export function TabLuncur() {
           </div>
           <Isian
             label="Server"
-            title={!serverBebas ? 'Ignored: the launch target already names one server.' : param.sama === 'sepi' ? 'Every account joins its own public server, the one with the fewest players first.' : param.sama && !jedaBerlaku ? 'All in one server needs two or more accounts selected.' : 'Which public server each account joins.'}
+            title={!serverBebas ? 'Ignored: the launch target already names one server.' : param.sama === 'sepi' ? 'Every account joins its own public server, the one with the fewest players first.' : param.sama === 'sendiri' ? 'Every account joins the private server it owns in this game. Free ones can be created for accounts that have none; paid ones are never bought.' : param.sama && !jedaBerlaku ? 'All in one server needs two or more accounts selected.' : 'Which public server each account joins.'}
           >
             <Select
               value={param.sama || 'off'}
-              onValueChange={(v) => setParam({ sama: v === 'off' ? '' : (v as 'pilih' | 'ikuti' | 'sepi') })}
+              onValueChange={(v) => setParam({ sama: v === 'off' ? '' : (v as 'pilih' | 'ikuti' | 'sepi' | 'sendiri') })}
               disabled={!serverBebas}
               ariaLabel="Server"
               options={[
                 { value: 'off', label: 'Roblox picks' },
                 { value: 'sepi', label: 'Emptiest server for each' },
+                { value: 'sendiri', label: 'Own private server for each' },
                 { value: 'pilih', label: 'All in one: room for all' },
                 { value: 'ikuti', label: 'All in one: follow the first' },
               ]}

@@ -4,7 +4,7 @@ import type { Akun, Folder } from '@/api/types'
 import type { AccountColumn, AccountSortKey } from '@/types'
 import { waktuRelatif } from '@/api/api'
 import { DND_AKUN, IkonFolder, folderAkun, posisiDrop } from '@/lib/folder'
-import { geserAkun, segarkan, setFokus, taruhAkun, toggle, useCam } from '@/stores/cam'
+import { geserAkun, namaTargetSendiri, segarkan, setFokus, taruhAkun, toggle, useCam } from '@/stores/cam'
 import { statusAkun } from '@/lib/status-akun'
 import { cn } from '@/utils/cn'
 import { Checkbox } from '@/components/ui/Controls'
@@ -165,6 +165,7 @@ const BarisAkun = memo(function BarisAkun({ a, kolom, template, padat, bisaTab, 
                     {a.utama ? <Tag title="Main account: left out of Select all, bulk saver and folder presets">Main</Tag> : null}
                     {a.plus ? <Tag title="Roblox Plus subscription">Plus</Tag> : a.premium ? <Tag title="Roblox Premium (legacy membership)">Premium</Tag> : null}
                     {a.hemat ? <Tag title={`Resource saver: ${a.hemat_fps || 10} FPS, low graphics, low priority`}>Saver</Tag> : null}
+                    {a.target_sendiri ? <Tag title={`Own launch target: ${namaTargetSendiri(a.target_sendiri)}`}>Own target</Tag> : null}
                   </span>
                 </span>
               </div>

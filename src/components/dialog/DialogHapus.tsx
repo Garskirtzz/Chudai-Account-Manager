@@ -41,11 +41,26 @@ export function DialogHapus({ ids }: { ids: string[] }) {
             else (document.querySelector<HTMLElement>('[data-baris]') ?? document.querySelector<HTMLElement>('[title="Add account (Ctrl+N)"]'))?.focus() 
           }
           fokus()
-          requestAnimationFrame(() => requestAnimationFrame(() => {
+          const lagi = () => {
             const a = document.activeElement
             if (document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [role="menu"][data-state="open"]')) return
             if (!a || a === document.body || !a.isConnected) fokus()
-          }))
+          }
+          const raf: number[] = []
+          const waktu: number[] = []
+          let lepas = () => {}
+          const henti = () => {
+            raf.forEach(cancelAnimationFrame)
+            waktu.forEach(clearTimeout)
+            lepas()
+            removeEventListener('pointerdown', henti, true)
+            removeEventListener('keydown', henti, true)
+          }
+          addEventListener('pointerdown', henti, true)
+          addEventListener('keydown', henti, true)
+          raf.push(requestAnimationFrame(() => raf.push(requestAnimationFrame(lagi))))
+          lepas = useCam.subscribe(() => raf.push(requestAnimationFrame(lagi)))
+          waktu.push(window.setTimeout(lagi, 300), window.setTimeout(lagi, 1000), window.setTimeout(henti, 2000))
         }}
       >
         <JudulDialog ikon={<Trash2 className="h-4 w-4" />} judul={judul} />

@@ -33,6 +33,7 @@ export const HALAMAN: Halaman[] = [
       { id: 'discover', label: 'Discover' },
       { id: 'browse', label: 'Browse servers' },
       { id: 'saved', label: 'Saved servers' },
+      { id: 'pribadi', label: 'Private servers' },
     ],
   },
   {

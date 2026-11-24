@@ -902,7 +902,56 @@ pub async fn daftar_server_urut(
 }
 
 pub async fn alamat_server(cookie: &str, place_id: u64, job_id: &str) -> Option<String> {
-    let c = client().ok()?;
+    info_server(cookie, place_id, job_id).await.alamat
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct InfoServer {
+    pub alamat: Option<String>,
+    pub mulai_ms: i64,
+    pub versi: i64,
+    pub status: i64,
+    pub pesan: String,
+}
+
+pub fn urai_info_server(teks: &str, job_id: &str) -> InfoServer {
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(teks) else {
+        return InfoServer { status: -1, ..Default::default() };
+    };
+    let mut info = InfoServer {
+        status: v.get("status").and_then(|x| x.as_i64()).unwrap_or(-1),
+        pesan: v.get("message").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+        ..Default::default()
+    };
+    let js = match v.get("joinScript") {
+        Some(x) if x.is_object() => x,
+        _ => return info,
+    };
+    let game = js.get("GameId").and_then(|x| x.as_str()).unwrap_or("");
+    if game.is_empty() || !game.eq_ignore_ascii_case(job_id) {
+        return info;
+    }
+    let ambil = |k: &str| -> Option<String> {
+        js.get(k)?
+            .as_array()?
+            .first()?
+            .get("Address")?
+            .as_str()
+            .map(|s| s.to_string())
+    };
+    info.alamat = ambil("UdmuxEndpoints")
+        .or_else(|| ambil("ServerConnections"))
+        .or_else(|| js.get("MachineAddress").and_then(|x| x.as_str()).map(|s| s.to_string()))
+        .filter(|ip| !ip_privat(ip));
+    info.mulai_ms = js.get("ServerClaimedTime").and_then(|x| x.as_i64()).filter(|&m| m > 0).unwrap_or(0);
+    info.versi = js.get("PlaceVersion").and_then(|x| x.as_i64()).filter(|&n| n > 0).unwrap_or(0);
+    info
+}
+
+pub async fn info_server(cookie: &str, place_id: u64, job_id: &str) -> InfoServer {
+    let Ok(c) = client() else {
+        return InfoServer { status: -1, ..Default::default() };
+    };
     let teks = kirim(cookie, true, |k, t| {
         dengan_csrf(
             c.post("https://gamejoin.roblox.com/v1/join-game-instance")
@@ -915,35 +964,97 @@ pub async fn alamat_server(cookie: &str, place_id: u64, job_id: &str) -> Option<
             t,
         )
     })
-    .await
-    .ok()?
-    .text()
-    .await
-    .ok()?;
-
-    let v: serde_json::Value = serde_json::from_str(&teks).ok()?;
-
-    let js = match v.get("joinScript") {
-        Some(x) if !x.is_null() => x,
-        _ => return None,
+    .await;
+    let teks = match teks {
+        Ok(r) => r.text().await.unwrap_or_default(),
+        Err(_) => return InfoServer { status: -1, ..Default::default() },
     };
+    urai_info_server(&teks, job_id)
+}
 
-    let ambil = |k: &str| -> Option<String> {
-        js.get(k)?
-            .as_array()?
-            .first()?
-            .get("Address")?
-            .as_str()
-            .map(|s| s.to_string())
+pub async fn versi_terbaru(cookie: &str, place_id: u64) -> i64 {
+    let Ok(c) = client() else { return 0 };
+    let r = kirim(cookie, true, |k, t| {
+        dengan_csrf(
+            c.post("https://develop.roblox.com/v1/assets/latest-versions")
+                .header("Cookie", cookie_header(k))
+                .header("Referer", "https://www.roblox.com/")
+                .header("Origin", "https://www.roblox.com")
+                .json(&serde_json::json!({ "assetIds": [place_id], "versionStatus": "Published" })),
+            t,
+        )
+    })
+    .await;
+    let Ok(r) = r else { return 0 };
+    let v: serde_json::Value = r.json().await.unwrap_or_default();
+    urai_versi_terbaru(&v)
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct InfoPribadi {
+    pub diizinkan: Option<bool>,
+    pub harga: Option<i64>,
+    pub bisa_buat: Option<bool>,
+    pub batas: Option<i64>,
+}
+
+fn atribut_html(html: &str, nama: &str) -> Option<String> {
+    let kunci = format!("data-{nama}=\"");
+    let (_, sisa) = html.split_once(&kunci)?;
+    sisa.split('"').next().map(|x| x.trim().to_string())
+}
+
+pub fn urai_pribadi_html(html: &str) -> (Option<i64>, Option<bool>, Option<i64>) {
+    (
+        atribut_html(html, "private-server-price").and_then(|x| x.parse().ok()),
+        atribut_html(html, "can-create-server").map(|x| x.eq_ignore_ascii_case("true")),
+        atribut_html(html, "private-server-limit").and_then(|x| x.parse().ok()),
+    )
+}
+
+pub async fn info_pribadi(cookie: &str, universe_id: u64, place_id: u64) -> InfoPribadi {
+    let Ok(c) = client() else { return InfoPribadi::default() };
+    let diizinkan = match kirim(cookie, false, |k, _| {
+        c.get(format!("https://games.roblox.com/v1/private-servers/enabled-in-universe/{universe_id}"))
+            .header("Cookie", cookie_header(k))
+    })
+    .await
+    {
+        Ok(r) if r.status().is_success() => r
+            .json::<serde_json::Value>()
+            .await
+            .ok()
+            .and_then(|v| v.get("privateServersEnabled").and_then(|x| x.as_bool())),
+        _ => None,
     };
-    ambil("UdmuxEndpoints")
-        .or_else(|| ambil("ServerConnections"))
-        .or_else(|| {
-            js.get("MachineAddress")
-                .and_then(|x| x.as_str())
-                .map(|s| s.to_string())
-        })
-        .filter(|ip| !ip_privat(ip))
+    let mut info = InfoPribadi { diizinkan, ..Default::default() };
+    if diizinkan == Some(false) {
+        return info;
+    }
+    if let Ok(r) = kirim(cookie, false, |k, _| {
+        c.get(format!("https://www.roblox.com/games/{place_id}/"))
+            .header("Cookie", cookie_header(k))
+    })
+    .await
+    {
+        if r.status().is_success() {
+            let html = r.text().await.unwrap_or_default();
+            let (harga, bisa, batas) = urai_pribadi_html(&html);
+            info.harga = harga;
+            info.bisa_buat = bisa;
+            info.batas = batas;
+        }
+    }
+    info
+}
+
+pub fn urai_versi_terbaru(v: &serde_json::Value) -> i64 {
+    v.get("results")
+        .and_then(|r| r.get(0))
+        .filter(|r| r.get("status").and_then(|s| s.as_str()) == Some("Success"))
+        .and_then(|r| r.get("versionNumber"))
+        .and_then(|n| n.as_i64())
+        .unwrap_or(0)
 }
 
 fn ip_privat(ip: &str) -> bool {
@@ -1326,6 +1437,73 @@ pub async fn wilayah_ip_banyak(ips: &[String]) -> HashMap<String, String> {
         }
     }
     hasil
+}
+
+#[cfg(test)]
+mod tes_t045_info {
+    use super::*;
+
+    const JOB: &str = "9fe51f9b-781b-460b-bedf-d04a94e647c7";
+
+    #[test]
+    fn info_server_membaca_umur_versi_alamat() {
+        let t = format!(r#"{{"status":2,"joinScript":{{"GameId":"{}","PlaceVersion":6287,"ServerClaimedTime":1795512794804,"UdmuxEndpoints":[{{"Address":"128.116.45.12"}}],"MachineAddress":"10.20.2.154"}}}}"#, JOB.to_uppercase());
+        let i = urai_info_server(&t, JOB);
+        assert_eq!(i.status, 2);
+        assert_eq!(i.versi, 6287);
+        assert_eq!(i.mulai_ms, 1795512794804);
+        assert_eq!(i.alamat.as_deref(), Some("128.116.45.12"));
+    }
+
+    #[test]
+    fn waktu_nol_berarti_tidak_diketahui() {
+        let t = format!(r#"{{"status":2,"joinScript":{{"GameId":"{JOB}","PlaceVersion":6284,"ServerClaimedTime":0,"MachineAddress":"10.1.1.1"}}}}"#);
+        let i = urai_info_server(&t, JOB);
+        assert_eq!(i.mulai_ms, 0);
+        assert_eq!(i.versi, 6284);
+        assert_eq!(i.alamat, None, "alamat privat dibuang");
+    }
+
+    #[test]
+    fn server_lain_tidak_dipakai() {
+        let t = r#"{"status":2,"joinScript":{"GameId":"8e9f1397-295b-43a4-853b-d897cb80b5d1","PlaceVersion":6287,"ServerClaimedTime":123,"UdmuxEndpoints":[{"Address":"128.116.1.1"}]}}"#;
+        let i = urai_info_server(t, JOB);
+        assert_eq!(i.status, 2);
+        assert_eq!((i.versi, i.mulai_ms, i.alamat), (0, 0, None));
+    }
+
+    #[test]
+    fn tanpa_game_id_tidak_dipakai() {
+        let t = r#"{"status":2,"joinScript":{"PlaceVersion":6287,"ServerClaimedTime":123,"UdmuxEndpoints":[{"Address":"128.116.1.1"}]}}"#;
+        let i = urai_info_server(t, JOB);
+        assert_eq!((i.status, i.versi, i.mulai_ms, i.alamat), (2, 0, 0, None));
+    }
+
+    #[test]
+    fn penuh_dan_rusak() {
+        let i = urai_info_server(r#"{"status":22,"message":"Game is full","joinScript":null}"#, JOB);
+        assert_eq!((i.status, i.pesan.as_str()), (22, "Game is full"));
+        assert_eq!(urai_info_server("bukan json", JOB).status, -1);
+    }
+
+    #[test]
+    fn harga_dari_halaman_game() {
+        let html = r#"<div data-user-can-manage-place="False"      data-private-server-price="0"      data-can-create-server="True"      data-private-server-limit="1"      data-seller-name="X"      data-private-server-product-id="2668215925">"#;
+        assert_eq!(urai_pribadi_html(html), (Some(0), Some(true), Some(1)));
+        let bayar = r#"data-private-server-price="40" data-can-create-server="False" data-private-server-limit="2147483647""#;
+        assert_eq!(urai_pribadi_html(bayar), (Some(40), Some(false), Some(2147483647)));
+        assert_eq!(urai_pribadi_html("<html></html>"), (None, None, None));
+        assert_eq!(urai_pribadi_html(r#"data-private-server-product-id="99""#).0, None);
+    }
+
+    #[test]
+    fn versi_terbaru_hanya_bila_sukses() {
+        let ok = serde_json::json!({"results":[{"assetId":1,"status":"Success","versionNumber":6287}]});
+        let gagal = serde_json::json!({"results":[{"assetId":1,"status":"Failure","versionNumber":5}]});
+        assert_eq!(urai_versi_terbaru(&ok), 6287);
+        assert_eq!(urai_versi_terbaru(&gagal), 0);
+        assert_eq!(urai_versi_terbaru(&serde_json::json!({})), 0);
+    }
 }
 
 #[cfg(test)]
@@ -1832,4 +2010,228 @@ pub async fn diagnosa_avatar_3d_banyak(cookie: &str, uid: &[(String, u64)]) -> V
         out.push(baris);
     }
     out
+}
+
+fn galat_roblox(st: reqwest::StatusCode, v: &serde_json::Value) -> String {
+    let pesan = v
+        .get("errors")
+        .and_then(|e| e.get(0))
+        .and_then(|e| e.get("message"))
+        .and_then(|m| m.as_str())
+        .unwrap_or("")
+        .trim();
+    if pesan.is_empty() {
+        format!("Roblox answered HTTP {}.", st.as_u16())
+    } else {
+        format!("Roblox: {pesan}")
+    }
+}
+
+async fn json_roblox(cookie: &str, metode: reqwest::Method, url: &str, badan: Option<serde_json::Value>) -> Result<serde_json::Value, String> {
+    let c = client()?;
+    let ubah = metode != reqwest::Method::GET;
+    let r = kirim(cookie, ubah, |k, t| {
+        let mut rb = c
+            .request(metode.clone(), url)
+            .header("Cookie", cookie_header(k))
+            .header("Referer", "https://www.roblox.com/")
+            .header("Origin", "https://www.roblox.com");
+        if let Some(b) = &badan {
+            rb = rb.json(b);
+        }
+        if ubah { dengan_csrf(rb, t) } else { rb }
+    })
+    .await
+    .map_err(|_| "Could not reach Roblox.".to_string())?;
+    let st = r.status();
+    let teks = r.text().await.unwrap_or_default();
+    let v: serde_json::Value = serde_json::from_str(&teks).unwrap_or(serde_json::Value::Null);
+    if !st.is_success() {
+        return Err(galat_roblox(st, &v));
+    }
+    Ok(v)
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct ServerMilik {
+    pub vip_id: u64,
+    pub nama: String,
+    pub place_id: u64,
+    pub universe_id: u64,
+    pub nama_game: String,
+    pub aktif: bool,
+    pub kedaluwarsa: String,
+    pub harga: Option<i64>,
+    pub perpanjang: bool,
+    pub pemilik_id: u64,
+}
+
+pub fn urai_milik(v: &serde_json::Value) -> (Vec<ServerMilik>, String) {
+    let teks = |x: &serde_json::Value, k: &str| x.get(k).and_then(|s| s.as_str()).unwrap_or("").to_string();
+    let daftar = v
+        .get("data")
+        .and_then(|d| d.as_array())
+        .map(|a| {
+            a.iter()
+                .filter_map(|s| {
+                    Some(ServerMilik {
+                        vip_id: s.get("privateServerId")?.as_u64()?,
+                        nama: teks(s, "name"),
+                        place_id: s.get("placeId").and_then(|x| x.as_u64()).unwrap_or(0),
+                        universe_id: s.get("universeId").and_then(|x| x.as_u64()).unwrap_or(0),
+                        nama_game: teks(s, "universeName"),
+                        aktif: s.get("active").and_then(|x| x.as_bool()).unwrap_or(false),
+                        kedaluwarsa: teks(s, "expirationDate"),
+                        harga: s.get("priceInRobux").and_then(|x| x.as_i64()),
+                        perpanjang: s.get("willRenew").and_then(|x| x.as_bool()).unwrap_or(false),
+                        pemilik_id: s.get("ownerId").and_then(|x| x.as_u64()).unwrap_or(0),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    (daftar, teks(v, "nextPageCursor"))
+}
+
+pub async fn pribadi_milik(cookie: &str) -> Result<Vec<ServerMilik>, String> {
+    let mut semua = Vec::new();
+    let mut cursor = String::new();
+    for _ in 0..5 {
+        let mut url = "https://games.roblox.com/v1/private-servers/my-private-servers?itemsPerPage=100&privateServersTab=MyPrivateServers".to_string();
+        if !cursor.is_empty() {
+            url.push_str(&format!("&cursor={}", urlencoding::encode(&cursor)));
+        }
+        let v = json_roblox(cookie, reqwest::Method::GET, &url, None).await?;
+        let (d, c) = urai_milik(&v);
+        semua.extend(d);
+        if c.is_empty() {
+            break;
+        }
+        cursor = c;
+    }
+    Ok(semua)
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct DetailVip {
+    pub vip_id: u64,
+    pub nama: String,
+    pub aktif: bool,
+    pub access_code: String,
+    pub link: String,
+    pub teman: bool,
+    pub kedaluwarsa: String,
+    pub lewat: bool,
+    pub harga: Option<i64>,
+    pub perpanjang: bool,
+    pub place_id: u64,
+    pub universe_id: u64,
+    pub nama_game: String,
+}
+
+pub fn urai_detail_vip(v: &serde_json::Value) -> DetailVip {
+    let teks = |x: Option<&serde_json::Value>| x.and_then(|s| s.as_str()).unwrap_or("").to_string();
+    let sub = v.get("subscription");
+    DetailVip {
+        vip_id: v.get("id").and_then(|x| x.as_u64()).unwrap_or(0),
+        nama: teks(v.get("name")),
+        aktif: v.get("active").and_then(|x| x.as_bool()).unwrap_or(false),
+        access_code: teks(v.get("accessCode")),
+        link: teks(v.get("link")),
+        teman: v.get("permissions").and_then(|p| p.get("friendsAllowed")).and_then(|x| x.as_bool()).unwrap_or(false),
+        kedaluwarsa: teks(sub.and_then(|s| s.get("expirationDate"))),
+        lewat: sub.and_then(|s| s.get("expired")).and_then(|x| x.as_bool()).unwrap_or(false),
+        harga: sub.and_then(|s| s.get("price")).and_then(|x| x.as_i64()),
+        perpanjang: sub.and_then(|s| s.get("active")).and_then(|x| x.as_bool()).unwrap_or(false),
+        place_id: v.get("game").and_then(|g| g.get("rootPlace")).and_then(|p| p.get("id")).and_then(|x| x.as_u64()).unwrap_or(0),
+        universe_id: v.get("game").and_then(|g| g.get("id")).and_then(|x| x.as_u64()).unwrap_or(0),
+        nama_game: teks(v.get("game").and_then(|g| g.get("name"))),
+    }
+}
+
+pub async fn detail_vip(cookie: &str, vip_id: u64) -> Result<DetailVip, String> {
+    let v = json_roblox(cookie, reqwest::Method::GET, &format!("https://games.roblox.com/v1/vip-servers/{vip_id}"), None).await?;
+    Ok(urai_detail_vip(&v))
+}
+
+pub async fn ubah_vip(cookie: &str, vip_id: u64, badan: serde_json::Value) -> Result<DetailVip, String> {
+    let v = json_roblox(cookie, reqwest::Method::PATCH, &format!("https://games.roblox.com/v1/vip-servers/{vip_id}"), Some(badan)).await?;
+    Ok(urai_detail_vip(&v))
+}
+
+pub async fn izin_teman_vip(cookie: &str, vip_id: u64, boleh: bool) -> Result<bool, String> {
+    let v = json_roblox(
+        cookie,
+        reqwest::Method::PATCH,
+        &format!("https://games.roblox.com/v1/vip-servers/{vip_id}/permissions"),
+        Some(serde_json::json!({ "friendsAllowed": boleh })),
+    )
+    .await?;
+    Ok(v.get("friendsAllowed").and_then(|x| x.as_bool()).unwrap_or(boleh))
+}
+
+pub async fn henti_langganan_vip(cookie: &str, vip_id: u64) -> Result<(), String> {
+    json_roblox(
+        cookie,
+        reqwest::Method::PATCH,
+        &format!("https://games.roblox.com/v1/vip-servers/{vip_id}/subscription"),
+        Some(serde_json::json!({ "active": false })),
+    )
+    .await
+    .map(|_| ())
+}
+
+pub async fn buat_vip_gratis(cookie: &str, universe_id: u64, nama: &str) -> Result<(u64, String), String> {
+    let v = json_roblox(
+        cookie,
+        reqwest::Method::POST,
+        &format!("https://games.roblox.com/v1/games/vip-servers/{universe_id}"),
+        Some(serde_json::json!({ "name": nama, "expectedPrice": 0 })),
+    )
+    .await?;
+    if let Some(id) = v.get("vipServerId").and_then(|x| x.as_u64()) {
+        let kode = v.get("accessCode").and_then(|x| x.as_str()).unwrap_or("").to_string();
+        return Ok((id, kode));
+    }
+    let alasan = v.get("FailureReason").or_else(|| v.get("failureReason")).and_then(|x| x.as_str()).unwrap_or("no server was created");
+    Err(format!("Roblox: {alasan}"))
+}
+
+pub async fn universe_dari_place(place_id: u64) -> u64 {
+    let Ok(c) = client() else { return 0 };
+    match c.get(format!("https://apis.roblox.com/universes/v1/places/{place_id}/universe")).send().await {
+        Ok(r) => r.json::<serde_json::Value>().await.ok().and_then(|v| v.get("universeId").and_then(|x| x.as_u64())).unwrap_or(0),
+        Err(_) => 0,
+    }
+}
+
+#[cfg(test)]
+mod tes_t045_milik {
+    use super::*;
+
+    #[test]
+    fn daftar_milik_terurai() {
+        let v = serde_json::json!({"data":[{"active":false,"expirationDate":"2126-11-24T10:05:42.317Z","name":"CAM test","ownerId":11927929345u64,"ownerName":"Buditribun","placeId":121864768012064u64,"priceInRobux":null,"privateServerId":5044295929u64,"universeId":6701277882u64,"universeName":"Fish It","willRenew":false},{"name":"tanpa id"}],"nextPageCursor":"abc"});
+        let (d, c) = urai_milik(&v);
+        assert_eq!(c, "abc");
+        assert_eq!(d.len(), 1, "baris tanpa privateServerId dibuang");
+        let s = &d[0];
+        assert_eq!((s.vip_id, s.universe_id, s.place_id, s.aktif, s.harga), (5044295929, 6701277882, 121864768012064, false, None));
+        assert_eq!(s.nama_game, "Fish It");
+    }
+
+    #[test]
+    fn detail_vip_terurai() {
+        let v = serde_json::json!({"active":true,"game":{"id":6701277882u64,"name":"Fish It","rootPlace":{"id":121864768012064u64}},"id":5044295929u64,"accessCode":"aaaa","joinCode":"j","link":"https://www.roblox.com/share?code=x&type=Server","name":"Farm","permissions":{"friendsAllowed":true},"subscription":{"active":false,"expirationDate":"2126-11-24T10:05:42.317Z","expired":false,"price":0}});
+        let d = urai_detail_vip(&v);
+        assert_eq!((d.vip_id, d.aktif, d.teman, d.lewat, d.harga, d.place_id), (5044295929, true, true, false, Some(0), 121864768012064));
+        assert_eq!((d.access_code.as_str(), d.nama.as_str()), ("aaaa", "Farm"));
+    }
+
+    #[test]
+    fn galat_roblox_memakai_pesan() {
+        let v = serde_json::json!({"errors":[{"code":0,"message":"Name is moderated"}]});
+        assert_eq!(galat_roblox(reqwest::StatusCode::BAD_REQUEST, &v), "Roblox: Name is moderated");
+        assert_eq!(galat_roblox(reqwest::StatusCode::FORBIDDEN, &serde_json::Value::Null), "Roblox answered HTTP 403.");
+    }
 }

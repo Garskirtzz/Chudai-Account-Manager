@@ -48,6 +48,7 @@ export interface Akun {
   utama: boolean
   kualitas_penuh: boolean
   pembatasan: Pembatasan | null
+  target_sendiri?: TargetLuncur | null
 }
 
 export interface PresetHemat {
@@ -147,7 +148,7 @@ export interface TargetLuncur {
   link_code: string
   ikuti: string
   jeda: string
-  sama: '' | 'pilih' | 'ikuti' | 'sepi'
+  sama: '' | 'pilih' | 'ikuti' | 'sepi' | 'sendiri'
   fps: string
 }
 
@@ -276,10 +277,74 @@ export interface PribadiSemua {
 export interface WilayahServer {
   job_id: string
   wilayah: string
+  mulai_ms: number
+  versi: number
+  status: number
 }
 export interface PeriksaServer {
   bisa: boolean
   pesan: string
+  versi: number
+}
+export interface PribadiAkun {
+  akun_id: string
+  status: 'siap' | 'mati' | 'tidak_ada' | 'galat'
+  vip_id: number
+  nama: string
+  access_code: string
+  link: string
+  harga: number | null
+  pesan: string
+}
+export interface SiapPribadi {
+  universe_id: number
+  info: InfoPribadi
+  akun: PribadiAkun[]
+}
+export interface ServerMilik {
+  vip_id: number
+  nama: string
+  place_id: number
+  universe_id: number
+  nama_game: string
+  aktif: boolean
+  kedaluwarsa: string
+  harga: number | null
+  perpanjang: boolean
+  pemilik_id: number
+}
+export interface MilikSemua {
+  akun: { akun_id: string; servers: ServerMilik[] }[]
+  diperiksa: number
+  gagal: string[]
+}
+export interface DetailVip {
+  vip_id: number
+  nama: string
+  aktif: boolean
+  access_code: string
+  link: string
+  teman: boolean
+  kedaluwarsa: string
+  lewat: boolean
+  harga: number | null
+  perpanjang: boolean
+  place_id: number
+  universe_id: number
+  nama_game: string
+}
+export interface PerubahanVip {
+  nama?: string
+  aktif?: boolean
+  teman?: boolean
+  link_baru?: boolean
+  henti_langganan?: boolean
+}
+export interface InfoPribadi {
+  diizinkan: boolean | null
+  harga: number | null
+  bisa_buat: boolean | null
+  batas: number | null
 }
 export interface CekAnggaran {
   lewat: boolean
