@@ -1,0 +1,456 @@
+.jl, .jl-latar, .jl-terbang {
+  --jl-ease: cubic-bezier(0.22, 0.75, 0.25, 1);
+  --jl-spring: cubic-bezier(0.34, 1.35, 0.4, 1);
+  --jl-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --jl-kartu: 12rem;
+  --jl-r-kartu: 14px;
+  --jl-r-besar: 22px;
+  --jl-tinta: rgb(var(--text-primary));
+  --jl-redup: rgb(var(--text-secondary));
+  --jl-samar: rgb(var(--text-muted));
+  --jl-garis: rgb(var(--border-subtle));
+  --jl-garis-kuat: rgb(var(--border-strong));
+}
+
+.jl-filter {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 0.75rem 1.25rem 0.5rem;
+  background: linear-gradient(180deg, rgb(var(--bg-app)) 82%, rgb(var(--bg-app) / 0));
+}
+.jl-cari { position: relative; flex: 1; min-width: 13rem; max-width: 28rem; }
+.jl-cari > svg { position: absolute; left: 0.875rem; top: 50%; transform: translateY(-50%); color: rgb(var(--text-muted)); pointer-events: none; }
+.jl-cari:focus-within > svg { color: rgb(var(--accent)); }
+.jl-cari input {
+  width: 100%;
+  height: 2.375rem;
+  border-radius: 999px;
+  border: 1px solid var(--jl-garis);
+  background: rgb(var(--surface-1));
+  padding: 0 3.25rem 0 2.5rem;
+  font-size: 0.8125rem;
+  color: var(--jl-tinta);
+}
+.jl-cari input::placeholder { color: var(--jl-samar); }
+.jl-cari input:focus { outline: none; border-color: var(--jl-garis-kuat); background: rgb(var(--surface-2)); box-shadow: 0 0 0 4px rgb(var(--accent) / 0.08); }
+.jl-cari kbd, .jl-cari .jl-hapus { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); }
+.jl-cari kbd { font-family: theme('fontFamily.mono'); font-size: 0.6875rem; color: var(--jl-samar); border: 1px solid var(--jl-garis); border-radius: 6px; padding: 1px 7px; pointer-events: none; }
+.jl-hapus { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 999px; color: var(--jl-samar); }
+.jl-hapus:hover { color: var(--jl-tinta); background: rgb(var(--surface-3)); }
+
+.jl-ikon-tombol {
+  display: grid;
+  place-items: center;
+  width: 2.375rem;
+  height: 2.375rem;
+  flex: none;
+  border-radius: 999px;
+  border: 1px solid var(--jl-garis);
+  color: var(--jl-samar);
+  transition: transform 250ms var(--jl-spring);
+}
+.jl-ikon-tombol:hover:not(:disabled) { color: var(--jl-tinta); border-color: var(--jl-garis-kuat); transform: translateY(-1px); }
+.jl-ikon-tombol:disabled { opacity: 0.5; }
+.jl-ikon-tombol:focus-visible { outline: 2px solid rgb(var(--accent) / 0.7); outline-offset: 2px; }
+
+.jl-sorotan { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); grid-auto-rows: auto; gap: 1rem; padding: 1.25rem 1.25rem 0; }
+.jl-spot {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 0;
+  border-radius: var(--jl-r-besar);
+  border: 1px solid var(--jl-garis);
+  background: rgb(var(--surface-2));
+  text-align: left;
+  cursor: pointer;
+  transition: transform 500ms var(--jl-ease);
+}
+.jl-sorotan:hover .jl-spot { will-change: transform; }
+.jl-spot:hover { transform: translateY(-4px); border-color: var(--jl-garis-kuat); }
+.jl-spot > * { flex-shrink: 0; }
+.jl-spot-utama { grid-row: 1 / span 2; padding: 1.75rem; min-height: clamp(16rem, 42vh, 27rem); }
+.jl-spot-sisi { padding: 1.125rem 1.25rem; min-height: clamp(7.5rem, 20vh, 13rem); }
+.jl-spot-seni { position: absolute; inset: 0; z-index: -2; transition: transform 1200ms var(--jl-ease); }
+.jl-spot-seni > img, .jl-spot-seni > .jl-seni { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.jl-spot:hover .jl-spot-seni { transform: scale(1.045); }
+.jl-spot::before { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgb(8 8 10 / 0.05) 30%, rgb(8 8 10 / 0.85) 90%); }
+.jl-alis {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: theme('fontFamily.mono');
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(var(--accent));
+}
+.jl-alis::before { content: ''; width: 1.375rem; height: 1px; background: currentColor; flex: none; }
+.jl-spot h3 {
+  margin-top: 0.625rem;
+  color: #fff;
+  font-weight: 650;
+  line-height: 1.04;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+  text-shadow: 0 2px 16px rgb(0 0 0 / 0.4);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.jl-spot-utama h3 { font-size: clamp(1.625rem, 3.2vw, 2.75rem); }
+.jl-spot-sisi h3 { font-size: clamp(1.0625rem, 1.6vw, 1.5rem); -webkit-line-clamp: 1; }
+.jl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 1rem; margin-top: 0.75rem; font-family: theme('fontFamily.mono'); font-size: 0.75rem; color: rgb(244 242 236 / 0.78); }
+.jl-meta b { color: #fff; font-weight: 500; }
+.jl-spot-sisi .jl-meta { margin-top: 0.375rem; }
+.jl-sudut {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 2.125rem;
+  height: 2.125rem;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 0.22);
+  color: #fff;
+  background: rgb(8 8 10 / 0.5);
+  pointer-events: none;
+  transition: transform 350ms var(--jl-spring);
+}
+.jl-spot-sisi:hover .jl-sudut { transform: rotate(45deg); background: rgb(var(--accent)); color: rgb(var(--accent-fg)); border-color: rgb(var(--accent)); }
+
+.jl-tombol {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5625rem;
+  height: 2.75rem;
+  padding: 0 1.375rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  transition: transform 300ms var(--jl-spring);
+}
+.jl-tombol:active { transform: scale(0.96); }
+.jl-tombol-utama { background: rgb(var(--accent)); color: rgb(var(--accent-fg)); }
+.jl-tombol-utama::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 12px 32px rgb(var(--accent) / 0.3); opacity: 0; transition: opacity 300ms ease; pointer-events: none; }
+.jl-tombol-utama:hover { transform: translateY(-2px); }
+.jl-tombol-utama:hover::after { opacity: 1; }
+.jl-tombol-hantu { border: 1px solid var(--jl-garis-kuat); color: var(--jl-tinta); background: rgb(var(--bg-app) / 0.35); }
+.jl-spot .jl-tombol-hantu { color: #fff; border-color: rgb(255 255 255 / 0.28); background: rgb(10 10 12 / 0.55); }
+.jl-tombol-hantu:hover { border-color: var(--jl-tinta); transform: translateY(-2px); }
+.jl-spot .jl-tombol-hantu:hover { border-color: #fff; }
+.jl-tombol:focus-visible { outline: 2px solid rgb(var(--accent) / 0.7); outline-offset: 3px; }
+
+.jl-titik-hidup { position: relative; display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 99px; background: rgb(var(--accent)); vertical-align: middle; }
+.jl-titik-hidup::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: rgb(var(--accent)); opacity: 0; animation: jl-denyut 2s ease-out 2; }
+@keyframes jl-denyut { 0% { transform: scale(1); opacity: 0.55; } 60%, 100% { transform: scale(2.8); opacity: 0; } }
+
+.jl-rak { margin-top: 2.5rem; padding: 0 1.25rem; content-visibility: auto; contain-intrinsic-size: auto 23rem; }
+.jl-rak-kepala { display: flex; align-items: flex-end; gap: 1rem; margin-bottom: 1rem; }
+.jl-nomor { align-self: flex-start; min-width: 1.75rem; padding-top: 0.5rem; font-family: theme('fontFamily.mono'); font-size: 0.75rem; letter-spacing: 0.1em; color: var(--jl-samar); }
+.jl-rak-judul { display: flex; align-items: center; gap: 0.5rem; font-weight: 650; font-size: clamp(1.25rem, 2.2vw, 1.75rem); letter-spacing: -0.015em; line-height: 1.1; color: var(--jl-tinta); }
+.jl-rak-sub { margin-top: 0.1875rem; font-size: 0.8125rem; color: var(--jl-redup); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jl-catatan { font-size: 0.6875rem; font-weight: 500; letter-spacing: 0.02em; color: var(--jl-samar); border: 1px solid var(--jl-garis); border-radius: 6px; padding: 1px 6px; white-space: nowrap; }
+.jl-alat { margin-left: auto; display: flex; align-items: center; gap: 0.875rem; flex: none; }
+.jl-kemajuan { display: block; width: 7.5rem; height: 2px; overflow: hidden; border-radius: 99px; background: var(--jl-garis); }
+.jl-kemajuan > i { display: block; height: 100%; width: 20%; border-radius: 99px; background: rgb(var(--accent)); will-change: transform; }
+.jl-jumlah { font-family: theme('fontFamily.mono'); font-size: 0.75rem; color: var(--jl-samar); font-variant-numeric: tabular-nums; }
+.jl-panah {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  border: 1px solid var(--jl-garis);
+  color: var(--jl-redup);
+  transition: transform 250ms var(--jl-ease);
+}
+.jl-panah:hover:not(:disabled) { color: rgb(var(--accent-fg)); background: rgb(var(--accent)); border-color: rgb(var(--accent)); transform: translateY(-1px); }
+.jl-panah:disabled { opacity: 0.28; cursor: default; }
+.jl-panah:focus-visible { outline: 2px solid rgb(var(--accent) / 0.7); outline-offset: 2px; }
+
+.jl-bungkus { position: relative; }
+.jl-bungkus::before,
+.jl-bungkus::after { content: ''; position: absolute; top: 0; bottom: 0; width: 4.75rem; z-index: 5; pointer-events: none; opacity: 0; transition: opacity 350ms ease; }
+.jl-bungkus::before { left: -1px; background: linear-gradient(90deg, rgb(var(--bg-app)) 12%, rgb(var(--bg-app) / 0)); }
+.jl-bungkus::after { right: -1px; background: linear-gradient(-90deg, rgb(var(--bg-app)) 12%, rgb(var(--bg-app) / 0)); }
+.jl-bungkus.jl-pudar-kiri::before,
+.jl-bungkus.jl-pudar-kanan::after { opacity: 1; }
+.jl-jalur {
+  display: flex;
+  gap: 1.125rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  padding: 0.5rem 0.125rem 1.25rem;
+  cursor: grab;
+}
+.jl-rak:hover .jl-jalur, .jl-jalur:focus-within { background-color: rgb(var(--bg-app)); }
+.jl-jalur::-webkit-scrollbar { display: none; }
+.jl-jalur.jl-menyeret { cursor: grabbing; user-select: none; }
+.jl-jalur.jl-menyeret .jl-kartu { pointer-events: none; }
+
+.jl-kartu { position: relative; flex: 0 0 var(--jl-kartu); min-width: 0; border-radius: var(--jl-r-kartu); }
+.jl-sampul, .jl-info { transition: transform 450ms var(--jl-ease); }
+.jl-kartu:hover .jl-sampul, .jl-kartu:hover .jl-info { transform: translateY(-7px); }
+.jl-kartu:active .jl-sampul { transform: translateY(-3px) scale(0.985); }
+.jl-kartu::before { content: ''; position: absolute; left: 0; right: 0; top: 0; aspect-ratio: 1; border-radius: var(--jl-r-kartu); box-shadow: 0 24px 48px rgb(0 0 0 / 0.5); opacity: 0; transition: opacity 450ms var(--jl-ease); pointer-events: none; }
+.jl-kartu:hover::before { opacity: 1; }
+.jl-sampul { position: relative; aspect-ratio: 1; border-radius: var(--jl-r-kartu); overflow: hidden; isolation: isolate; border: 1px solid var(--jl-garis); background: rgb(var(--surface-2)); }
+.jl-kartu:hover .jl-sampul { border-color: var(--jl-garis-kuat); }
+.jl-seni-bungkus { position: absolute; inset: 0; transition: transform 900ms var(--jl-ease); }
+.jl-kartu:hover .jl-seni-bungkus { transform: scale(1.07); }
+.jl-gambar, .jl-seni { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.jl-gambar { opacity: 0; transition: opacity 320ms var(--jl-ease); }
+.jl-gambar[data-siap] { opacity: 1; }
+.jl-seni { display: grid; place-items: center; overflow: hidden; }
+.jl-seni > span { font-weight: 700; font-size: 4rem; color: transparent; -webkit-text-stroke: 1px rgb(244 242 236 / 0.22); line-height: 1; }
+.jl-sampul::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgb(0 0 0 / 0.38), transparent 30%, transparent 48%, rgb(0 0 0 / 0.72)); }
+.jl-lencana-baris { position: absolute; top: 0.625rem; left: 0.625rem; right: 3.5rem; z-index: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; pointer-events: none; }
+.jl-tag {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: theme('fontFamily.mono');
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgb(244 242 236 / 0.9);
+  background: rgb(8 8 10 / 0.62);
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+.jl-tag-target { display: inline-flex; align-items: center; gap: 4px; background: rgb(var(--accent)); color: rgb(var(--accent-fg)); font-weight: 700; }
+.jl-peringkat {
+  position: absolute;
+  top: 0.375rem;
+  right: 0.625rem;
+  z-index: 2;
+  pointer-events: none;
+  font-weight: 700;
+  font-size: 2.5rem;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1px rgb(244 242 236 / 0.55);
+  font-variant-numeric: tabular-nums;
+}
+.jl-judul-sampul {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.625rem;
+  z-index: 2;
+  pointer-events: none;
+  font-weight: 650;
+  font-size: 1.125rem;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: rgb(248 246 240 / 0.96);
+  text-shadow: 0 2px 18px rgb(0 0 0 / 0.5);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  transition: opacity 300ms ease, transform 350ms var(--jl-ease);
+}
+.jl-kartu[data-hover='1'] .jl-judul-sampul { opacity: 0; transform: translateY(-8px); }
+.jl-kilau { position: absolute; inset: 0; z-index: 3; pointer-events: none; background: linear-gradient(115deg, transparent 30%, rgb(255 255 255 / 0.14) 46%, transparent 60%); transform: translateX(120%); animation: jl-kilau 900ms var(--jl-ease); }
+@keyframes jl-kilau { from { transform: translateX(-120%); } }
+.jl-cepat { position: absolute; left: 0.625rem; right: 0.625rem; bottom: 0.625rem; z-index: 4; display: flex; gap: 0.5rem; transition: opacity 350ms var(--jl-ease), transform 400ms var(--jl-spring); }
+@starting-style { .jl-cepat { opacity: 0; transform: translateY(10px); } }
+.jl-kartu[data-hover='2'] .jl-cepat { opacity: 0; transform: translateY(10px); pointer-events: none; transition-duration: 300ms; }
+.jl-cepat-utama, .jl-cepat-ikon { display: flex; align-items: center; justify-content: center; gap: 0.4375rem; height: 2.25rem; border-radius: 10px; font-size: 0.75rem; font-weight: 700; transition: transform 250ms var(--jl-spring); }
+.jl-cepat-utama { flex: 1; min-width: 0; background: rgb(var(--accent)); color: rgb(var(--accent-fg)); }
+.jl-cepat-utama:hover { transform: scale(1.03); }
+.jl-cepat-ikon { width: 2.25rem; flex: none; background: rgb(10 10 12 / 0.78); border: 1px solid rgb(255 255 255 / 0.18); color: #fff; }
+.jl-cepat-ikon:hover { transform: scale(1.06); background: rgb(10 10 12 / 0.92); }
+.jl-sampul:has(> button:focus-visible) { outline: 2px solid rgb(var(--accent) / 0.75); outline-offset: 3px; }
+.jl-sampul > button:focus-visible { outline: none; }
+.jl-info { padding: 0.75rem 0.25rem 0; }
+.jl-nama { font-weight: 700; font-size: 0.875rem; letter-spacing: -0.01em; color: var(--jl-tinta); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jl-statistik-kartu { display: flex; align-items: center; gap: 0.875rem; margin-top: 0.3125rem; font-family: theme('fontFamily.mono'); font-size: 0.6875rem; color: var(--jl-samar); }
+.jl-statistik-kartu span { display: flex; align-items: center; gap: 0.3125rem; }
+.jl-naik { color: rgb(var(--success)); }
+
+.jl-rv { opacity: 0; transform: translateY(26px); }
+[data-masuk] .jl-rv { opacity: 1; transform: none; transition: opacity 700ms var(--jl-ease), transform 800ms var(--jl-ease); transition-delay: calc(var(--i, 0) * 70ms); }
+
+.jl-sk { position: relative; overflow: hidden; background: rgb(var(--surface-2)); border-radius: 6px; }
+.jl-sk::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / 0.07) 50%, transparent 80%);
+  transform: translateX(-100%);
+  animation: jl-kilap 1.6s var(--jl-ease) infinite;
+  animation-delay: calc(var(--i, 0) * 90ms);
+}
+@keyframes jl-kilap { 70%, 100% { transform: translateX(100%); } }
+.jl-sk-sampul { aspect-ratio: 1; border-radius: var(--jl-r-kartu); }
+.jl-sk-baris { height: 0.75rem; border-radius: 6px; }
+.jl-sk-judul { height: 1.25rem; width: min(13rem, 60%); border-radius: 7px; }
+.jl-sk-spot { cursor: default; border-color: var(--jl-garis); }
+.jl-sk-spot:hover { transform: none; }
+.jl-sk-isi { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 0.625rem; }
+.jl-sk-terang { background: rgb(var(--surface-3)); border-radius: 7px; }
+.jl-sk-judul-besar { height: 2.25rem; width: min(26rem, 80%); border-radius: 9px; }
+.jl-sk-pil { height: 2.75rem; width: 11rem; border-radius: 999px; }
+
+.jl-latar { position: fixed; inset: 0; z-index: 90; background: rgb(5 5 7 / 0.66); animation: jl-pudar-masuk 400ms var(--jl-ease); transition: opacity 380ms var(--jl-ease); }
+.jl-latar[data-fase='keluar'] { opacity: 0; }
+@keyframes jl-pudar-masuk { from { opacity: 0; } }
+.jl-modal {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 91;
+  width: min(920px, calc(100vw - 32px));
+  max-height: min(640px, calc(100vh - 32px));
+  translate: -50% -50%;
+  display: grid;
+  grid-template-columns: 19rem minmax(0, 1fr);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  border-radius: var(--jl-r-besar);
+  border: 1px solid var(--jl-garis-kuat);
+  background: rgb(var(--surface-1));
+  box-shadow: 0 50px 120px rgb(0 0 0 / 0.6);
+  outline: none;
+  transition: opacity 300ms var(--jl-ease);
+}
+.jl-modal:focus, .jl-modal:focus-visible { outline: none; }
+.jl-modal[data-terbang='tidak'] { animation: jl-modal-pegas 500ms var(--jl-spring); }
+@keyframes jl-modal-pegas { from { opacity: 0; transform: translateY(46px) scale(0.97); } }
+.jl-modal[data-terbang='ya'] { animation: jl-pudar-masuk 350ms var(--jl-ease); }
+.jl-modal[data-fase='keluar'] { opacity: 0; }
+.jl-modal[data-terbang='ya'][data-fase='masuk'] .jl-modal-sampul .jl-seni-bungkus,
+.jl-modal[data-fase='keluar'] .jl-modal-sampul .jl-seni-bungkus { visibility: hidden; }
+.jl-modal-sampul { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: 14px; background: #0d0d10; }
+.jl-modal-sampul::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, transparent 50%, rgb(0 0 0 / 0.75)); }
+.jl-modal-sampul .jl-judul-sampul { font-size: 1.625rem; left: 1.125rem; right: 1.125rem; bottom: 1rem; z-index: 3; }
+.jl-modal[data-terbang='ya'][data-fase='masuk'] .jl-modal-sampul .jl-judul-sampul { opacity: 0; transform: translateY(14px); transition: none; }
+.jl-modal[data-terbang='ya'][data-fase='mendarat'] .jl-modal-sampul .jl-judul-sampul { transition: opacity 450ms var(--jl-ease) 80ms, transform 600ms var(--jl-expo) 80ms; }
+.jl-modal[data-fase='keluar'] .jl-modal-sampul .jl-judul-sampul { opacity: 0; transform: translateY(8px); transition: opacity 120ms ease, transform 150ms ease; }
+.jl-modal-kiri { padding: 1.25rem 0 1.25rem 1.25rem; display: flex; flex-direction: column; gap: 0.875rem; min-width: 0; }
+.jl-modal-badan { padding: 2rem 2rem 1.75rem; display: flex; flex-direction: column; min-width: 0; }
+.jl-modal-badan > * { --i: 0; }
+.jl-modal-badan > :nth-child(2) { --i: 1; }
+.jl-modal-badan > :nth-child(3) { --i: 2; }
+.jl-modal-badan > :nth-child(4) { --i: 3; }
+.jl-modal-badan > :nth-child(5) { --i: 4; }
+.jl-modal-badan > :nth-child(6) { --i: 5; }
+.jl-modal-badan > :nth-child(7) { --i: 6; }
+.jl-modal-badan > :nth-child(8) { --i: 7; }
+.jl-modal[data-terbang='ya'][data-fase='masuk'] .jl-modal-badan > *,
+.jl-modal[data-terbang='ya'][data-fase='masuk'] .jl-fakta { opacity: 0; transform: translateY(18px); transition: none; }
+.jl-modal[data-terbang='ya'][data-fase='mendarat'] .jl-modal-badan > *,
+.jl-modal[data-terbang='ya'][data-fase='mendarat'] .jl-fakta { transition: opacity 500ms var(--jl-ease), transform 600ms var(--jl-expo); transition-delay: calc(var(--i) * 55ms); }
+.jl-modal[data-fase='keluar'] .jl-modal-badan > *,
+.jl-modal[data-fase='keluar'] .jl-fakta { opacity: 0; transform: translateY(-10px); transition: opacity 120ms ease, transform 150ms ease; transition-delay: 0ms; }
+.jl-tutup {
+  position: absolute;
+  top: 0.875rem;
+  right: 0.875rem;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: rgb(10 10 12 / 0.6);
+  border: 1px solid var(--jl-garis-kuat);
+  color: var(--jl-tinta);
+  transition: transform 300ms var(--jl-spring);
+}
+.jl-tutup:hover { transform: rotate(90deg); background: rgb(10 10 12 / 0.85); }
+.jl-tutup:focus-visible { outline: 2px solid rgb(var(--accent) / 0.7); outline-offset: 2px; }
+.jl-modal h2 { margin-top: 0.5rem; padding-right: 2.5rem; font-weight: 650; font-size: 1.875rem; line-height: 1.05; letter-spacing: -0.015em; color: var(--jl-tinta); overflow-wrap: anywhere; }
+.jl-pembuat { margin-top: 0.375rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; font-size: 0.8125rem; color: var(--jl-redup); }
+.jl-pembuat b { color: var(--jl-tinta); font-weight: 600; }
+.jl-centang { display: inline-grid; place-items: center; width: 0.875rem; height: 0.875rem; border-radius: 99px; background: rgb(var(--info)); color: #fff; }
+.jl-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.875rem; }
+.jl-tags span { font-family: theme('fontFamily.mono'); font-size: 0.6875rem; color: var(--jl-redup); border: 1px solid var(--jl-garis); padding: 3px 9px; border-radius: 6px; }
+.jl-stat { display: flex; margin-top: 1.25rem; border: 1px solid var(--jl-garis); border-radius: 12px; overflow: hidden; }
+.jl-stat > div { flex: 1; min-width: 0; padding: 0.8125rem 1rem; }
+.jl-stat > div + div { border-left: 1px solid var(--jl-garis); }
+.jl-stat b { display: block; font-family: theme('fontFamily.mono'); font-size: 1.1875rem; font-weight: 700; color: var(--jl-tinta); font-variant-numeric: tabular-nums; }
+.jl-stat span { font-family: theme('fontFamily.mono'); font-size: 0.6875rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--jl-samar); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.jl-desk { margin-top: 1.125rem; font-size: 0.8125rem; line-height: 1.65; color: var(--jl-redup); white-space: pre-line; overflow-wrap: anywhere; }
+.jl-desk-lipat { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.jl-teks-tombol { margin-top: 0.25rem; align-self: flex-start; font-size: 0.75rem; font-weight: 600; color: var(--jl-redup); text-decoration: underline; text-underline-offset: 2px; }
+.jl-teks-tombol:hover { color: var(--jl-tinta); }
+.jl-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.625rem; margin-top: 1.375rem; }
+.jl-fakta { display: flex; flex-direction: column; border: 1px solid var(--jl-garis); border-radius: 10px; --i: 2; }
+.jl-fakta > div { display: flex; justify-content: space-between; gap: 0.75rem; padding: 0.4375rem 0.75rem; font-size: 0.75rem; }
+.jl-fakta > div + div { border-top: 1px solid var(--jl-garis); }
+.jl-fakta dt { color: var(--jl-samar); }
+.jl-fakta dd { color: var(--jl-tinta); text-align: right; font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: anywhere; }
+.jl-mirip { margin-top: auto; padding-top: 1.5rem; }
+.jl-mirip h5 { font-family: theme('fontFamily.mono'); font-size: 0.6875rem; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--jl-samar); margin-bottom: 0.75rem; }
+.jl-mirip-baris { display: flex; gap: 0.625rem; }
+.jl-sim {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem;
+  border-radius: 10px;
+  border: 1px solid var(--jl-garis);
+  text-align: left;
+  transition: transform 300ms var(--jl-spring);
+}
+.jl-sim:hover { border-color: var(--jl-garis-kuat); background: rgb(var(--surface-2)); transform: translateY(-2px); }
+.jl-sim-ikon { position: relative; width: 2.5rem; height: 2.5rem; flex: none; overflow: hidden; border-radius: 7px; }
+.jl-sim p { font-size: 0.75rem; font-weight: 700; color: var(--jl-tinta); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jl-sim span { font-family: theme('fontFamily.mono'); font-size: 0.6875rem; color: var(--jl-samar); }
+.jl-gambar-layar { display: flex; gap: 0.5rem; margin-top: 1rem; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+.jl-gambar-layar button { flex: none; width: 9.5rem; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 8px; border: 1px solid var(--jl-garis); transition: transform 250ms var(--jl-spring); }
+.jl-gambar-layar button:hover { border-color: var(--jl-garis-kuat); transform: translateY(-2px); }
+.jl-gambar-layar img { width: 100%; height: 100%; object-fit: cover; }
+.jl-terbang { position: fixed; z-index: 95; overflow: hidden; transform-origin: top left; pointer-events: none; will-change: transform; border-radius: 14px; }
+.jl-terbang > * { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.jl-lihat { position: fixed; inset: 0; z-index: 96; display: grid; place-items: center; padding: 2rem; background: rgb(5 5 7 / 0.88); animation: jl-pudar-masuk 200ms ease; cursor: zoom-out; }
+.jl-lihat img { max-width: 100%; max-height: 100%; border-radius: 12px; animation: jl-modal-pegas 400ms var(--jl-spring); }
+
+@media (max-width: 1000px) {
+  .jl-sorotan { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .jl-spot-utama { grid-column: 1 / span 2; grid-row: auto; padding: 1.25rem; min-height: clamp(13rem, 36vh, 20rem); }
+  .jl-spot-utama h3 { font-size: clamp(1.375rem, 3vw, 2.25rem); }
+  .jl-kemajuan { display: none; }
+  .jl-modal { grid-template-columns: 15rem minmax(0, 1fr); }
+  .jl-modal-badan { padding: 1.75rem 1.5rem 1.5rem; }
+  .jl-modal-sampul .jl-judul-sampul { font-size: 1.25rem; }
+}
+@media (max-width: 760px) {
+  .jl-modal { grid-template-columns: 1fr; }
+  .jl-modal-kiri { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); align-items: start; padding: 1.25rem 1.25rem 0; }
+  .jl-modal-sampul .jl-judul-sampul { font-size: 1.0625rem; }
+  .jl-stat { flex-wrap: wrap; }
+  .jl-stat > div { flex: 1 1 45%; }
+  .jl-mirip-baris { flex-wrap: wrap; }
+  .jl-sim { flex: 1 1 45%; }
+}
+
+html[data-motion='off'] .jl-rv { opacity: 1; transform: none; }
+html[data-motion='off'] .jl-titik-hidup::after, html[data-motion='off'] .jl-sk::after { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .jl-rv { opacity: 1; transform: none; }
+  .jl-titik-hidup::after, .jl-sk::after { animation: none; }
+}

@@ -1,0 +1,87 @@
+:root {
+  color-scheme: dark;
+
+  --bg-app: 8 8 8;             
+  --bg-chrome: 11 11 11;       
+  --surface-1: 16 16 16;       
+  --surface-2: 22 22 22;       
+  --surface-3: 29 29 29;       
+
+  --border-subtle: 30 30 30;   
+  --border: 44 44 44;          
+  --border-strong: 68 68 68;   
+
+  --text-primary: 245 245 245; 
+  --text-secondary: 198 198 198; 
+  --text-muted: 156 156 156;   
+
+  --success: 95 190 140;       
+  --warning: 222 172 76;       
+  --error: 236 108 108;        
+  --info: 128 168 228;         
+
+  --accent: 240 240 240;       
+  --accent-hover: 255 255 255; 
+  --accent-soft: 240 240 240;
+  --accent-fg: 8 8 8;          
+
+  --header-h: 48px;
+  --sidebar-w: 336px;
+  --sidebar-collapsed-w: 64px;
+  --console-collapsed-h: 34px;
+  --row-h: 40px;
+  --row-h-sm: 34px;
+  --control-h: 32px;
+
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 7px;
+  --radius-xl: 10px;
+
+  --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.45), 0 8px 24px rgb(0 0 0 / 0.35);
+  --shadow-overlay: 0 24px 60px -12px rgb(0 0 0 / 0.75), 0 0 0 1px rgb(245 245 245 / 0.04);
+}
+
+html[data-mode='terang'] {
+  color-scheme: light;
+
+  --bg-app: 244 244 244;       
+  --bg-chrome: 236 236 236;    
+  --surface-1: 251 251 251;    
+  --surface-2: 243 243 243;
+  --surface-3: 233 233 233;
+
+  --border-subtle: 226 226 226; 
+  --border: 208 208 208;       
+  --border-strong: 166 166 166; 
+
+  --text-primary: 20 20 20;    
+  --text-secondary: 58 58 58;  
+  --text-muted: 92 92 92;      
+
+  --success: 23 105 43;        
+  --warning: 138 83 0;         
+  --error: 179 38 30;          
+  --info: 11 87 164;           
+
+  --accent: 22 22 22;
+  --accent-hover: 0 0 0;
+  --accent-soft: 22 22 22;
+  --accent-fg: 255 255 255;
+
+  --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.08), 0 8px 24px rgb(0 0 0 / 0.08);
+  --shadow-overlay: 0 24px 60px -12px rgb(0 0 0 / 0.28), 0 0 0 1px rgb(0 0 0 / 0.06);
+}
+
+html[data-density='compact'] {
+  --row-h: 36px;
+  --row-h-sm: 30px;
+  --control-h: 30px;
+}
+
+html[data-density='comfortable'] {
+  --row-h: 42px;
+  --row-h-sm: 38px;
+  --control-h: 34px;
+}

@@ -1,0 +1,11 @@
+.app-canvas {
+  background-color: rgb(var(--bg-app));
+  background-image: none;
+}
+
+.app-canvas[data-grid='true'] {
+  background-image: linear-gradient(to right, rgb(var(--border-subtle) / 0.25) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--border-subtle) / 0.4) 1px, transparent 1px);
+  background-size: 32px 32px, 32px 32px;
+  background-position: 0 0, 0 0;
+}
