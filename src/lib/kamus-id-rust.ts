@@ -51,6 +51,8 @@ function peringatanHemat(w) {
 }
 
 export const KAMUS_RUST = {
+  "The download stopped: no data arrived for 2 minutes. Check the connection and try again.":
+    "Unduhan berhenti: tidak ada data masuk selama 2 menit. Periksa koneksi lalu coba lagi.",
   "The client stopped responding and was closed. The end of its log shows what it was doing.":
     "Klien berhenti merespons dan ditutup. Akhir log-nya menunjukkan apa yang sedang dikerjakannya.",
   "The client itself crashed (see the crash dump / Windows' record).": "Kliennya sendiri crash (lihat crash dump / catatan Windows).",
@@ -321,6 +323,7 @@ export const POLA_RUST = [
   [/^The 3D avatar file answered (.+)\.$/, "Berkas avatar 3D menjawab $1."],
   [/^Couldn't reach Roblox for the 3D avatar: (.+)$/, "Roblox tidak bisa dihubungi untuk avatar 3D: $1"],
   [/^Couldn't download the 3D avatar: (.+)$/, "Avatar 3D tidak bisa diunduh: $1"],
+  [/^Couldn't open the browser: (.+)$/, "Browser tidak bisa dibuka: $1"],
   [/^No Roblox user named (.+)\.$/, "Tidak ada pengguna Roblox bernama $1."],
   [/^Roblox answered HTTP (.+)\.$/, "Roblox menjawab HTTP $1."],
   [/^Roblox answered (\d+)$/, "Roblox menjawab $1"],

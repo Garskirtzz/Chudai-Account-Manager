@@ -82,6 +82,7 @@ const KEYEVENTF_KEYUP: u32 = 0x2;
 const KEYEVENTF_SCANCODE: u32 = 0x8;
 const MOUSEEVENTF_MOVE: u32 = 0x1;
 const SW_MINIMIZE: i32 = 6;
+const SW_SHOWMINNOACTIVE: i32 = 7;
 const SW_RESTORE: i32 = 9;
 
 #[link(name = "user32")]
@@ -128,6 +129,10 @@ pub fn layar_penuh() -> bool {
     matches!(s, 2..=4)
 }
 
+pub fn layar_penuh_menghalangi(layar_penuh: bool, klien_afk_di_depan: bool) -> bool {
+    layar_penuh && !klien_afk_di_depan
+}
+
 fn kirim(i: &Input) -> bool {
     unsafe { SendInput(1, i, std::mem::size_of::<Input>() as i32) == 1 }
 }
@@ -169,12 +174,12 @@ pub enum Hasil {
 
 pub fn tekan(hwnd_usize: usize) -> Hasil {
     let hwnd = hwnd_usize as Hwnd;
+    let sebelum = unsafe { GetForegroundWindow() };
     let kecil = unsafe { IsIconic(hwnd) } != 0;
     if kecil {
         unsafe { ShowWindow(hwnd, SW_RESTORE) };
         std::thread::sleep(DIPULIHKAN);
     }
-    let sebelum = unsafe { GetForegroundWindow() };
     let mut hasil = Hasil::Tidak;
     if ke_depan(hwnd) {
         if unsafe { GetForegroundWindow() } == hwnd {
@@ -187,11 +192,12 @@ pub fn tekan(hwnd_usize: usize) -> Hasil {
             hasil = if pemakai { Hasil::Terputus } else { Hasil::Ya };
         }
     }
-    if !sebelum.is_null() && sebelum != hwnd && !ke_depan(sebelum) {
+    let kembali = !sebelum.is_null() && sebelum != hwnd;
+    if kembali && !ke_depan(sebelum) {
         hasil = Hasil::Terputus;
     }
     if kecil {
-        unsafe { ShowWindow(hwnd, SW_MINIMIZE) };
+        unsafe { ShowWindow(hwnd, if kembali { SW_SHOWMINNOACTIVE } else { SW_MINIMIZE }) };
     }
     hasil
 }

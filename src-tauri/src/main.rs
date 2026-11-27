@@ -2558,6 +2558,13 @@ fn simpan_target_terakhir(state: State<AppState>, target: TargetLuncur) -> Resul
 
 fn rapikan_target_sendiri(t: Option<TargetLuncur>) -> Result<Option<TargetLuncur>, String> {
     let Some(t) = t else { return Ok(None) };
+    let ikuti = t.ikuti.trim().trim_start_matches('@').to_string();
+    if !ikuti.is_empty() {
+        if ikuti.len() < 3 || ikuti.len() > 20 || !ikuti.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+            return Err("That player name is not valid.".into());
+        }
+        return Ok(Some(TargetLuncur { ikuti, ..Default::default() }));
+    }
     let place_id: String = t.place_id.chars().filter(|c| c.is_ascii_digit()).collect();
     let link_code = t.link_code.trim().to_string();
     if place_id.is_empty() && link_code.is_empty() {
@@ -3246,7 +3253,9 @@ fn putaran_afk(k: &Konteks<'_>) -> std::time::Duration {
         .into_iter()
         .filter(|c| aktif.contains(&c.0) && !macet.contains(&c.2))
         .collect();
-    let jatuh = match afk::rencana(&klien, pantau::kini(), menit, afk::diam_ms(), afk::layar_penuh()) {
+    let depan = jendela::pid_depan();
+    let penuh = afk::layar_penuh_menghalangi(afk::layar_penuh(), depan != 0 && klien.iter().any(|c| c.2 == depan));
+    let jatuh = match afk::rencana(&klien, pantau::kini(), menit, afk::diam_ms(), penuh) {
         afk::Rencana::Tunggu => return afk::PUTARAN,
         afk::Rencana::Ulang => return afk::ULANG,
         afk::Rencana::Tekan(ids) => ids,
@@ -5211,6 +5220,7 @@ fn main() {
             pembaruan::cek_update,
             pembaruan::pasang_update,
             pembaruan::status_update,
+            pembaruan::buka_repo,
             status_unduh_roblox,
             batal_unduh_roblox,
             luncurkan,

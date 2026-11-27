@@ -40,10 +40,10 @@ function Cek({ checked, onChange, label, teks }: { checked: boolean; onChange: (
   )
 }
 
-function Ikon({ title, onClick, children, disabled, bahaya }: { title: string; onClick: () => void; children: ReactNode; disabled?: boolean; bahaya?: boolean }) {
+function Ikon({ title, onClick, children, disabled, bahaya, penuh }: { title: string; onClick: () => void; children: ReactNode; disabled?: boolean; bahaya?: boolean; penuh?: boolean }) {
   return (
     <Tooltip content={title}>
-      <button type="button" aria-label={title} onClick={onClick} disabled={disabled} className={cn('flex h-8 w-8 items-center justify-center rounded-md text-content-secondary hover:bg-surface-2 disabled:opacity-40', bahaya ? 'hover:text-error' : 'hover:text-content-primary')}>
+      <button type="button" aria-label={title} onClick={onClick} disabled={disabled} className={cn('flex h-8 items-center justify-center rounded-md text-content-secondary transition-[background-color,color,transform] duration-150 enabled:active:scale-[0.94] disabled:opacity-40', penuh ? 'w-auto rounded-[7px]' : 'w-8', bahaya ? 'hover:bg-error/[0.12] hover:text-error' : 'hover:bg-surface-2 hover:text-content-primary')}>
         {children}
       </button>
     </Tooltip>
@@ -100,23 +100,20 @@ function Catatan({ nilai, onSimpan }: { nilai: string; onSimpan: (t: string) => 
   )
 }
 
-export function TabAkun() {
-  const akun = useCam((s) => s.akun)
-  const fokusId = useCam((s) => s.fokusId)
+export function KartuDetail({ a }: { a: Akun | null }) {
   const folder = useCam((s) => s.folder)
   const pidAkun = useCam((s) => s.pidAkun)
   const sembunyi = useCam((s) => s.sembunyikanUsername)
   const sibuk = useCam((s) => !!s.statusLuncur || !!s.antrean)
   const sedangPerbarui = useCam((s) => s.sedangPerbarui)
   const segarkanSemuaJalan = useCam((s) => s.sedangSegarkan)
-  const a = akun.find((x) => x.id === fokusId) ?? null
 
   if (!a) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 px-8 text-center">
         <UserRound className="h-6 w-6 text-content-muted" />
         <p className="text-sm font-medium text-content-secondary">No account open</p>
-        <p className="text-sm leading-relaxed text-content-muted">Click an account name to see its details. Clicking does not change the selection.</p>
+        <p className="text-sm leading-relaxed text-content-muted">Click an account in the list to see its details here.</p>
       </div>
     )
   }
@@ -128,31 +125,32 @@ export function TabAkun() {
   const satu = (x: Akun) => [x]
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="border-b border-line-subtle px-4 py-4">
-        <div className="flex items-start gap-3">
+    <div className="flex h-full min-h-0 flex-col" data-kartu-detail>
+      <div className="shrink-0 border-b border-line-subtle px-4 pb-3.5 pt-4">
+        <div className="flex items-center gap-3">
           <AvatarAkun a={a} size="lg" berjalan={!!pid?.length} />
-          <div className="min-w-0">
-            <h2 className="truncate text-lg font-semibold text-content-primary" translate="no" title={a.alias}>{a.alias}</h2>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <h2 className="truncate text-lg font-semibold leading-tight text-content-primary" translate="no" title={a.alias}>{a.alias}</h2>
             <p className="truncate text-sm text-content-muted">
-              {a.display_name && a.display_name !== a.username ? <span translate="no">{a.display_name} · </span> : null}
-              <span>{a.premium ? 'Premium' : a.plus ? 'Plus' : 'Roblox account'}</span>
+              <span translate={a.username ? 'no' : undefined}>{a.username ? `@${sembunyi ? samarkan(a.username) : a.username}` : 'Not refreshed'}</span>
+              {a.premium ? ' · Premium' : a.plus ? ' · Plus' : ''}
             </p>
+            <div className="mt-0.5"><LencanaStatus a={a} /></div>
           </div>
         </div>
-        <div className="mt-3"><LencanaStatus a={a} /></div>
-        <div className="mt-3 flex flex-wrap gap-0.5">
-          <Ikon title="Rename" onClick={() => bukaDialog({ jenis: 'alias', akun: a })}><Pencil className="h-4 w-4" /></Ikon>
-          <Ikon title={segarkanSemuaJalan ? 'Refresh all is checking every account' : 'Refresh data'} disabled={segarkanSemuaJalan} onClick={() => void segarkan(a.id)}><RefreshCw className="h-4 w-4" /></Ikon>
-          <Ikon title={sedangPerbarui.includes(a.id) ? 'Refreshing cookie…' : 'Refresh cookie'} disabled={sedangPerbarui.includes(a.id)} onClick={() => void perbaruiCookie(a)}><KeyRound className="h-4 w-4" /></Ikon>
-          <Ikon title="Copy cookie" onClick={() => salinCookie(a)}><Copy className="h-4 w-4" /></Ikon>
-          <Ikon title="Open roblox.com as this account" onClick={() => void bukaSitus(a)}><Globe className="h-4 w-4" /></Ikon>
-          <Ikon title="Open profile as this account" onClick={() => void bukaSitus(a, 'profil')}><ExternalLink className="h-4 w-4" /></Ikon>
-          <Ikon title="FPS limit" onClick={() => bukaDialog({ jenis: 'fps', akun: a })}><Gauge className="h-4 w-4" /></Ikon>
-          <Ikon title="Delete account" bahaya onClick={() => hapusAkun(a)}><Trash2 className="h-4 w-4" /></Ikon>
+        <div role="toolbar" aria-label="Account actions" className="mt-3.5 grid grid-cols-8 gap-0.5 rounded-[9px] border border-line-subtle bg-app/35 p-0.5">
+          <Ikon penuh title="Rename" onClick={() => bukaDialog({ jenis: 'alias', akun: a })}><Pencil className="h-4 w-4" /></Ikon>
+          <Ikon penuh title={segarkanSemuaJalan ? 'Refresh all is checking every account' : 'Refresh data'} disabled={segarkanSemuaJalan} onClick={() => void segarkan(a.id)}><RefreshCw className="h-4 w-4" /></Ikon>
+          <Ikon penuh title={sedangPerbarui.includes(a.id) ? 'Refreshing cookie…' : 'Refresh cookie'} disabled={sedangPerbarui.includes(a.id)} onClick={() => void perbaruiCookie(a)}><KeyRound className="h-4 w-4" /></Ikon>
+          <Ikon penuh title="Copy cookie" onClick={() => salinCookie(a)}><Copy className="h-4 w-4" /></Ikon>
+          <Ikon penuh title="Open roblox.com as this account" onClick={() => void bukaSitus(a)}><Globe className="h-4 w-4" /></Ikon>
+          <Ikon penuh title="Open profile as this account" onClick={() => void bukaSitus(a, 'profil')}><ExternalLink className="h-4 w-4" /></Ikon>
+          <Ikon penuh title="FPS limit" onClick={() => bukaDialog({ jenis: 'fps', akun: a })}><Gauge className="h-4 w-4" /></Ikon>
+          <Ikon penuh title="Delete account" bahaya onClick={() => hapusAkun(a)}><Trash2 className="h-4 w-4" /></Ikon>
         </div>
       </div>
 
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" data-detail-gulir>
       <Bagian judul="Account">
         <div>
           <Prop nama="Username">
@@ -204,7 +202,7 @@ export function TabAkun() {
             {a.target_sendiri ? (
               <span className="min-w-0 flex-1" data-target-sendiri>
                 <span className="block truncate" translate="no" title={namaTargetSendiri(a.target_sendiri)}>{namaTargetSendiri(a.target_sendiri)}</span>
-                <span className="block text-xs text-content-muted">{jenisServer(a.target_sendiri).teks}</span>
+                <span className="block text-xs text-content-muted">{a.target_sendiri.ikuti ? "Joins that player's server" : jenisServer(a.target_sendiri).teks}</span>
               </span>
             ) : (
               <span className="flex-1 text-content-muted">Launch target</span>
@@ -281,6 +279,7 @@ export function TabAkun() {
           {a.last_error ? <p className="select-text break-words py-1 text-xs leading-relaxed text-error">{a.last_error}</p> : null}
         </div>
       </Bagian>
+      </div>
     </div>
   )
 }

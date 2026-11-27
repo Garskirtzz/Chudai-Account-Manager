@@ -149,7 +149,10 @@ export function asalFokus(): HTMLElement | null {
   const el = typeof document === 'undefined' ? null : document.activeElement
   if (!(el instanceof HTMLElement) || el === document.body) return null
   const id = el.closest('[role=menu]')?.getAttribute('aria-labelledby')
-  return (id ? document.getElementById(id) : null) ?? el
+  const pemicu = id ? document.getElementById(id) : null
+  const baris = pemicu?.dataset.asalBaris
+  if (baris) return document.querySelector<HTMLElement>(`[data-baris][data-id="${CSS.escape(baris)}"]`) ?? pemicu
+  return pemicu ?? el
 }
 export const minta = (k: Konfirmasi) => {
   const lama = get().konfirmasi
@@ -819,12 +822,15 @@ export async function segarkanSemua() {
   )
 }
 
-export const namaTargetSendiri = (t: TargetLuncur) => t.game_name || (t.place_id ? `Place ${t.place_id}` : 'Private server link')
+export const namaTargetSendiri = (t: TargetLuncur) => (t.ikuti ? `Following ${t.ikuti}` : t.game_name || (t.place_id ? `Place ${t.place_id}` : 'Private server link'))
 
 export async function pasangTargetSendiri(ids: string[]) {
   const p = get().param
-  if (!String(p.placeId).replace(/\D/g, '') && !p.linkCode.trim()) return void beriTahu('Pick a game or paste a private server link in the Launch panel first.', 'salah')
-  const t: TargetLuncur = { place_id: String(p.placeId), game_name: p.gameName || '', game_icon: p.gameIcon || '', job_id: p.jobId || '', link_code: p.linkCode || '', ikuti: '', jeda: '', sama: '', fps: '' }
+  const ikuti = p.ikuti.trim()
+  if (!ikuti && !String(p.placeId).replace(/\D/g, '') && !p.linkCode.trim()) return void beriTahu('Pick a game or paste a private server link under Launch target first.', 'salah')
+  const t: TargetLuncur = ikuti
+    ? { place_id: '', game_name: '', game_icon: '', job_id: '', link_code: '', ikuti, jeda: '', sama: '', fps: '' }
+    : { place_id: String(p.placeId), game_name: p.gameName || '', game_icon: p.gameIcon || '', job_id: p.jobId || '', link_code: p.linkCode || '', ikuti: '', jeda: '', sama: '', fps: '' }
   await aturTargetAkun(ids, t)
 }
 
@@ -964,7 +970,7 @@ export async function simpanServerSekarang() {
   try {
     const [daftar] = await api.simpanServerTersimpan({ id: '', nama, place_id: place, game_name: param.gameName || '', game_icon: param.gameIcon || '', job_id: job, link_code: link, dibuat: 0 })
     set({ serverTersimpan: daftar })
-    beriTahu(`Saved "${nama}". Find it under Saved in the Launch panel or on the Servers page.`, 'benar')
+    beriTahu(`Saved "${nama}". Find it in the target picker under Saved, or on the Servers page.`, 'benar')
     return true
   } catch (e) {
     beriTahu(String(e), 'salah')

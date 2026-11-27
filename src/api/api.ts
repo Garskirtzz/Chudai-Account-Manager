@@ -124,6 +124,7 @@ export const api = {
   cekUpdate: () => invoke<T.InfoUpdate | null>('cek_update'),
   pasangUpdate: () => invoke<void>('pasang_update'),
   statusUpdate: () => invoke<T.KemajuanUpdate>('status_update'),
+  bukaRepo: () => invoke<void>('buka_repo'),
   periksaVersiHemat: (id: string) => invoke<string | null>('periksa_versi_hemat', { id }),
   fpsTerpasang: () => invoke<unknown>('fps_terpasang'),
   daftarVersiRoblox: () => invoke<T.Klien[]>('daftar_versi_roblox'),

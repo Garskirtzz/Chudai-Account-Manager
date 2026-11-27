@@ -3,7 +3,8 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useUIStore } from '@/stores/uiStore'
 import { bukaDialog, mulaiCam, useCam } from '@/stores/cam'
-import { luncurTerpilih, pasangTray } from '@/logic/luncur'
+import { pasangTray } from '@/logic/luncur'
+import { bukaRencana } from '@/stores/rencanaLuncur'
 import { toast } from '@/stores/toastStore'
 import { api } from '@/api/api'
 import { bacaBahasa, terjemahkan } from '@/lib/bahasa'
@@ -98,12 +99,18 @@ export function AppShell() {
       }
       if (mod && event.key === 'Enter' && !typing) {
         event.preventDefault()
+        const { dipilih, fokusId, antrean } = useCam.getState()
+        const ada = dipilih.length > 0 || !!fokusId
         if (window.location.hash.startsWith('#/accounts')) {
-          void luncurTerpilih()
+          if (ada || antrean) bukaRencana(null, true)
           return
         }
         navigate('/accounts')
-        requestAnimationFrame(() => requestAnimationFrame(() => void luncurTerpilih()))
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (!window.location.hash.startsWith('#/accounts') || document.querySelector('[data-rencana-luncur]')) return
+          const s = useCam.getState()
+          if (s.dipilih.length || s.fokusId || s.antrean) bukaRencana(null, true)
+        }))
         return
       }
       if (mod && event.key.toLowerCase() === 'f') {

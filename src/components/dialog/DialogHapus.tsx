@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, Loader2, Trash2 } from '@/components/ikon'
 import { samarkan } from '@/api/api'
-import { asalFokus, jalankanHapus, tutupDialog, useCam } from '@/stores/cam'
+import { asalFokus, jalankanHapus, setDipilih, tutupDialog, useCam } from '@/stores/cam'
+import { jalankanAnimasiHapus, setPilihKlik, usePilihKlik } from '@/stores/rencanaLuncur'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Controls'
 import { Dialog, DialogBody, DialogContent, DialogFooter } from '@/components/ui/Dialog'
@@ -24,9 +25,23 @@ export function DialogHapus({ ids }: { ids: string[] }) {
   const hapus = async () => {
     if (sibuk) return
     setSibuk(true)
-    const ok = await jalankanHapus(daftar.map((a) => a.id), keluar)
-    setSibuk(false)
-    if (ok) tutupDialog()
+    const ids = daftar.map((a) => a.id)
+    const rute = location.hash
+    const sebelum = { dipilih: useCam.getState().dipilih, klik: usePilihKlik.getState().aktif, fokus: useCam.getState().fokusId }
+    tutupDialog()
+    await jalankanAnimasiHapus(ids)
+    const ok = await jalankanHapus(ids, keluar)
+    if (!ok) {
+      const ada = new Set(useCam.getState().akun.map((a) => a.id))
+      const kini = useCam.getState().dipilih
+      setDipilih([...kini, ...sebelum.dipilih.filter((id) => ada.has(id) && !kini.includes(id))])
+      if (sebelum.klik && sebelum.fokus && ada.has(sebelum.fokus) && useCam.getState().fokusId === sebelum.fokus) setPilihKlik(true)
+    }
+    requestAnimationFrame(() => {
+      if (location.hash !== rute) return 
+      const a = document.activeElement
+      if (!a || a === document.body || !a.isConnected || a.closest('[inert], .selbar.hide')) (document.querySelector<HTMLElement>('[data-baris]') ?? document.querySelector<HTMLElement>('[title="Add account (Ctrl+N)"]'))?.focus()
+    })
   }
   const judul = n === 1 ? `Delete ${daftar[0].alias}?` : `Delete ${n} accounts?`
 
@@ -36,12 +51,14 @@ export function DialogHapus({ ids }: { ids: string[] }) {
         size="md"
         onCloseAutoFocus={(e) => {
           e.preventDefault()
+          const rute = location.hash
           const fokus = () => {
-            if (asal?.isConnected && !(asal as HTMLButtonElement).disabled) asal.focus()
+            if (asal?.isConnected && !(asal as HTMLButtonElement).disabled && !asal.closest('[inert]')) asal.focus()
             else (document.querySelector<HTMLElement>('[data-baris]') ?? document.querySelector<HTMLElement>('[title="Add account (Ctrl+N)"]'))?.focus() 
           }
           fokus()
           const lagi = () => {
+            if (location.hash !== rute) return 
             const a = document.activeElement
             if (document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [role="menu"][data-state="open"]')) return
             if (!a || a === document.body || !a.isConnected) fokus()

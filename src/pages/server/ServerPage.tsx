@@ -74,7 +74,7 @@ function ServerTersimpanBagian() {
           </ul>
         ) : (
           <p className="px-5 pb-4 text-sm leading-relaxed text-content-muted">
-            No saved servers yet. Pick a game and paste a private server link (or a Job ID) in the Launch panel → Launch target, then click the bookmark button there. Saved servers stay until you delete them.
+            No saved servers yet. Pick a game and paste a private server link (or a Job ID) under Launch → Launch target, then click the bookmark button there. Saved servers stay until you delete them.
           </p>
         )
       ) : null}

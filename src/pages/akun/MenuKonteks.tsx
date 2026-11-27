@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
-import { CheckSquare, Copy, Crosshair, FolderPlus, Gauge, KeyRound, Pencil, Play, RefreshCw, Square, Trash2, UserRound, Wrench, X } from '@/components/ikon'
+import { CheckSquare, Copy, Crosshair, FolderPlus, Gauge, KeyRound, Pencil, Play, RefreshCw, Square, Trash2, Wrench, X } from '@/components/ikon'
 import type { Akun, Folder } from '@/api/types'
-import { luncurSatu, luncurTerpilih } from '@/logic/luncur'
 import { IkonFolder, folderAkun } from '@/lib/folder'
-import { aturTargetAkun, bukaDialog, hapusAkun, pasangTargetSendiri, perbaruiCookie, pindahAkun, salinCookie, segarkan, setDipilih, setFokus, useCam } from '@/stores/cam'
+import { aturTargetAkun, bukaDialog, hapusAkun, pasangTargetSendiri, perbaruiCookie, pindahAkun, salinCookie, segarkan, setDipilih, useCam } from '@/stores/cam'
+import { bukaRencana } from '@/stores/rencanaLuncur'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +14,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/DropdownMenu'
-import { bukaPanel } from './PanelKanan'
 
 export interface Konteks {
   x: number
@@ -36,6 +35,7 @@ export function MenuKonteks({ k, folder, onTutup, onPilihSemua, semuaDipilih }: 
   const akun = useCam((s) => s.akun)
   const dipilih = useCam((s) => s.dipilih)
   const sibukLuncur = useCam((s) => !!s.statusLuncur || !!s.antrean)
+  const segarkanSemuaJalan = useCam((s) => s.sedangSegarkan)
   const daftar = k.ids.map((id) => akun.find((a) => a.id === id)).filter((a): a is Akun => !!a)
   const n = daftar.length
   useEffect(() => {
@@ -55,7 +55,7 @@ export function MenuKonteks({ k, folder, onTutup, onPilihSemua, semuaDipilih }: 
   return (
     <DropdownMenu open onOpenChange={(o) => { if (!o) onTutup() }}>
       <DropdownMenuTrigger asChild>
-        <span aria-hidden style={{ position: 'fixed', left: k.x, top: k.y, width: 0, height: 0 }} />
+        <span aria-hidden data-asal-baris={k.asal} style={{ position: 'fixed', left: k.x, top: k.y, width: 0, height: 0 }} />
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
@@ -72,15 +72,12 @@ export function MenuKonteks({ k, folder, onTutup, onPilihSemua, semuaDipilih }: 
         <DropdownMenuItem
           icon={<Play className="h-3.5 w-3.5" />}
           disabled={sibukLuncur}
-          onSelect={() => (satu && !k.centang ? void luncurSatu(satu) : void luncurTerpilih())}
+          onSelect={() => bukaRencana(ids)}
         >
-          {n === 1 ? 'Launch' : `Launch ${n} accounts`}
+          {n === 1 ? 'Launch…' : `Launch ${n} accounts…`}
         </DropdownMenuItem>
-        {satu ? (
-          <DropdownMenuItem icon={<UserRound className="h-3.5 w-3.5" />} onSelect={() => { setFokus(satu.id); bukaPanel('akun') }}>Details</DropdownMenuItem>
-        ) : null}
         <DropdownMenuSeparator />
-        <DropdownMenuItem icon={<RefreshCw className="h-3.5 w-3.5" />} onSelect={() => void berurutan((a) => segarkan(a.id))}>{label('Refresh data')}</DropdownMenuItem>
+        <DropdownMenuItem icon={<RefreshCw className="h-3.5 w-3.5" />} disabled={segarkanSemuaJalan} onSelect={() => void berurutan((a) => segarkan(a.id))}>{label('Refresh data')}</DropdownMenuItem>
         <DropdownMenuItem icon={<KeyRound className="h-3.5 w-3.5" />} onSelect={() => void berurutan((a) => perbaruiCookie(a))}>{label('Refresh cookie')}</DropdownMenuItem>
         {satu ? (
           <>

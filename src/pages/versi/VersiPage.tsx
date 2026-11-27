@@ -239,7 +239,7 @@ function ArgumenBawaan() {
     <section aria-label="Launch arguments">
       <h2 className="mb-2 text-md font-semibold text-content-primary">Launch arguments</h2>
       <input value={teks} onChange={(e) => setTeks(e.target.value)} onBlur={() => void simpan()} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setTeks(nilai) }} placeholder="None" aria-label="Default launch arguments" spellCheck={false} className="h-9 w-full rounded-md border border-line bg-app/40 px-3 font-mono text-sm text-content-primary placeholder:font-sans placeholder:text-content-muted focus:border-accent/60 focus:outline-none" />
-      <p className="mt-1.5 text-sm leading-relaxed text-content-muted">Added after the launch link for every account that has none of its own (account panel). With arguments, RobloxPlayerBeta.exe is started directly: the newest installed version when Automatic is selected. Quotes and &amp; | &lt; &gt; ^ aren't allowed.</p>
+      <p className="mt-1.5 text-sm leading-relaxed text-content-muted">Added after the launch link for every account that has none of its own (account details). With arguments, RobloxPlayerBeta.exe is started directly: the newest installed version when Automatic is selected. Quotes and &amp; | &lt; &gt; ^ aren't allowed.</p>
     </section>
   )
 }

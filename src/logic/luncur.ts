@@ -10,10 +10,13 @@ let pemicu: Element | null = null
 
 export const sedangLuncur = () => !!sesiAktif
 
+export type ModeServer = '' | 'sepi' | 'sendiri' | 'pilih'
+
 interface Opsi {
   nyalakanDulu?: boolean
   target?: { placeId: number | string; jobId?: string; gameName?: string } | null
   lewatAnggaran?: boolean
+  mode?: Record<string, ModeServer> | null
 }
 
 type PL = ParamLuncur & { followUserId?: number }
@@ -33,7 +36,7 @@ const paramLuncur = () => paramDari(get().param)
 
 export function paramSendiri(a: Akun): PL | null {
   const t = a.target_sendiri
-  if (!t || (!t.place_id && !t.link_code)) return null
+  if (!t || t.ikuti || (!t.place_id && !t.link_code)) return null
   return paramDari({ placeId: t.place_id, jobId: t.job_id, linkCode: t.link_code, gameName: t.game_name, gameIcon: t.game_icon })
 }
 
@@ -111,8 +114,8 @@ async function siapkanSendiri(pg: PL, ag: Akun[], akses: Record<string, string>,
   }
 }
 
-async function idIkuti(acuan: Akun | undefined): Promise<{ id: number; galat?: string; nama?: string; game?: string; placeId?: number }> {
-  const teks = String(get().param.ikuti || '').trim()
+async function idIkuti(acuan: Akun | undefined, nama = String(get().param.ikuti || '')): Promise<{ id: number; galat?: string; nama?: string; game?: string; placeId?: number }> {
+  const teks = nama.trim()
   if (!teks) return { id: 0 }
   if (!acuan) return { id: 0, galat: 'Add an account first.' }
   try {
@@ -124,7 +127,7 @@ async function idIkuti(acuan: Akun | undefined): Promise<{ id: number; galat?: s
   }
 }
 
-export async function luncurkanDaftar(daftar: Akun[], sumber: Antrean['sumber'], { nyalakanDulu = false, target = null, lewatAnggaran = false }: Opsi = {}): Promise<void> {
+export async function luncurkanDaftar(daftar: Akun[], sumber: Antrean['sumber'], { nyalakanDulu = false, target = null, lewatAnggaran = false, mode = null }: Opsi = {}): Promise<void> {
   if (sesiAktif || !daftar.length) return
 
   if (!nyalakanDulu && daftar.length > 1 && !get().multiAktif) {
@@ -134,7 +137,7 @@ export async function luncurkanDaftar(daftar: Akun[], sumber: Antrean['sumber'],
         `You are launching ${daftar.length} accounts, but only one Roblox client can run while multi-instance is off.\n\n` +
         "Enabling it holds Roblox's own single-instance lock. Roblox's anti-cheat vendor has said running multiple clients may be treated as suspicious behaviour. It stays on until you turn it off or close this app.",
       labelYa: 'Enable and launch',
-      aksi: () => luncurkanDaftar(daftar, sumber, { nyalakanDulu: true, target, lewatAnggaran }),
+      aksi: () => luncurkanDaftar(daftar, sumber, { nyalakanDulu: true, target, lewatAnggaran, mode }),
     })
     return
   }
@@ -175,7 +178,7 @@ export async function luncurkanDaftar(daftar: Akun[], sumber: Antrean['sumber'],
         judul: 'Over the RAM budget',
         pesan: `This launch needs about ${gb(anggaran.tambahan_mb)} GB. Roblox clients already use about ${gb(anggaran.dipakai_mb)} GB of your ${gb(anggaran.anggaran_mb)} GB budget. These figures are estimates.`,
         labelYa: 'Launch anyway',
-        aksi: () => luncurkanDaftar(daftar, sumber, { nyalakanDulu, target, lewatAnggaran: true }),
+        aksi: () => luncurkanDaftar(daftar, sumber, { nyalakanDulu, target, lewatAnggaran: true, mode }),
       })
       return
     }
@@ -185,7 +188,22 @@ export async function luncurkanDaftar(daftar: Akun[], sumber: Antrean['sumber'],
       : paramLuncur()
     const sendiri = new Map<string, PL>()
     if (!target) for (const a of daftar) { const ps = paramSendiri(a); if (ps) sendiri.set(a.id, ps) }
-    const keUtama = daftar.filter((a) => !sendiri.has(a.id))
+    const gagalIkuti = new Map<string, string>()
+    if (!target) {
+      const perNama = new Map<string, Akun[]>()
+      for (const a of daftar) {
+        const n = a.target_sendiri?.ikuti?.trim()
+        if (n) perNama.set(n.toLowerCase(), [...(perNama.get(n.toLowerCase()) ?? []), a])
+      }
+      for (const ag of perNama.values()) {
+        const u = await idIkuti(ag[0], ag[0].target_sendiri!.ikuti)
+        for (const a of ag) {
+          if (u.galat || !u.id) gagalIkuti.set(a.id, `Own target: ${u.galat || 'that player could not be found.'}`)
+          else sendiri.set(a.id, { placeId: u.placeId || 0, jobId: '', linkCode: '', accessCode: '', shareCode: '', gameName: u.game || '', gameIcon: '', followUserId: u.id })
+        }
+      }
+    }
+    const keUtama = daftar.filter((a) => !sendiri.has(a.id) && !gagalIkuti.has(a.id))
     const acuan = daftar[0]
     const ik = target || !keUtama.length ? { id: 0 } : await idIkuti(acuan)
     if ('galat' in ik && ik.galat) return void beriTahu(`Launch not started: ${ik.galat}`, 'salah')
@@ -201,11 +219,12 @@ export async function luncurkanDaftar(daftar: Akun[], sumber: Antrean['sumber'],
     if (dasar.followUserId && 'nama' in ik) beriTahu(`Following ${ik.nama} into ${ik.game}.`)
     const param = get().param
     const jeda = Math.max(0, Number(param.jeda) || 0)
-    const fpsSekali = target ? null : Math.round(Number(param.fps) || 0) || null
+    const fpsSekali = null
     const kunci = (x: PL) => [x.placeId, x.jobId, x.linkCode, x.accessCode, x.shareCode, x.followUserId || 0].join('|')
     const grup = new Map<string, PL>()
     const pAkun = new Map<string, PL>()
     for (const a of daftar) {
+      if (gagalIkuti.has(a.id)) continue
       const asal = sendiri.get(a.id) ?? dasar
       const k = kunci(asal)
       if (!grup.has(k)) grup.set(k, { ...asal, fpsSekali })
@@ -213,7 +232,7 @@ export async function luncurkanDaftar(daftar: Akun[], sumber: Antrean['sumber'],
     }
     const anggota = (pg: PL) => daftar.filter((a) => pAkun.get(a.id) === pg)
     if (sendiri.size) beriTahu(`Own targets: ${sendiri.size} of ${daftar.length} accounts launch into their own game or server.`)
-    const gagalSendiri = new Map<string, string>()
+    const gagalSendiri = new Map<string, string>(gagalIkuti)
     for (const pg of grup.values()) {
       const ag = anggota(pg)
       const cek = await serverSiap(pg, ag[0])
@@ -228,7 +247,8 @@ export async function luncurkanDaftar(daftar: Akun[], sumber: Antrean['sumber'],
       const ag = anggota(pg).filter((a) => !gagalSendiri.has(a.id))
       const umum = !target && !pg.jobId && !pg.linkCode && !pg.accessCode && !pg.shareCode && !pg.followUserId
       if (!umum || !ag.length) continue
-      if (param.sama === 'sepi') {
+      const sama: string = mode ? (mode[String(pg.placeId)] ?? '') : param.sama
+      if (sama === 'sepi') {
         status('Finding the emptiest servers…')
         try {
           const job = await api.serverSepi(Number(pg.placeId), ag.length)
@@ -244,7 +264,7 @@ export async function luncurkanDaftar(daftar: Akun[], sumber: Antrean['sumber'],
         } catch (e) {
           beriTahu(`Emptiest servers: the server list couldn't be read (${e}), so Roblox picks the servers.`, 'salah')
         }
-      } else if (ag.length > 1 && param.sama === 'pilih') {
+      } else if (ag.length > 1 && sama === 'pilih') {
         status('Finding a server with room for everyone…')
         try {
           const job = await api.pilihServerBersama(ag[0].id, Number(pg.placeId), ag.length)
@@ -259,9 +279,9 @@ export async function luncurkanDaftar(daftar: Akun[], sumber: Antrean['sumber'],
           ikutiGrup.add(pg)
           beriTahu(`Same server: the server list couldn't be read (${e}), so the rest follow the first account's server.`, 'salah')
         }
-      } else if (ag.length > 1 && param.sama === 'ikuti') {
+      } else if (ag.length > 1 && sama === 'ikuti') {
         ikutiGrup.add(pg)
-      } else if (param.sama === 'sendiri') {
+      } else if (sama === 'sendiri') {
         await siapkanSendiri(pg, ag, aksesSendiri, gagalSendiri, status, sesi)
       }
     }

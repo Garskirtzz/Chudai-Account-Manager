@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.14.7 — 27 Nov 2026
+
+- **Updates that get stuck now end.** A download that receives no data for 2 minutes is stopped and reported, so you can try again (it used to say "Downloading…" for ever). A slow download that keeps receiving data is never cut off, and the install itself is never stopped. Changing the PC's clock doesn't affect this.
+- If the app can't read the download's progress for a minute, it says so; pressing the download button again follows the download that is still running instead of starting a new one.
+- About shows **Downloading** while the update downloads (it said Installing), also when the download was started from the top bar, and **Check now** waits until it's done.
+- With Windows' reduce-motion setting, the download button's ring and the GitHub button no longer animate.
+
+## 0.14.6 — 27 Nov 2026
+
+- **Update from the top bar.** While a new version is available, a round download button sits next to the Chudai logo. One click downloads, checks and installs it, and the app reopens, without going to About. Its ring fills as the update downloads. It goes away when there's nothing to update; About's **Check now** updates it too.
+- **GitHub** in Settings → About opens this app's page on GitHub in your browser.
+- Anti-AFK: after pressing its key in a minimized client, the focus now always returns to the window you were using.
+
+## 0.14.5 — 27 Nov 2026
+
+- **Anti-AFK works with Roblox in full screen.** A client in full screen (F11) counted as a full-screen app, so anti-AFK kept waiting and Roblox disconnected it for idling after 20 minutes while you were away. A client that has Anti-AFK on is now kept active in full screen too. Other full-screen apps and games, and a Roblox game you're playing in full screen with an account that doesn't have Anti-AFK on, are still left alone. When one client with Anti-AFK on is in full screen and another one is due, the focus moves to that one for a moment and comes back, as it does without full screen. Checked for 26 minutes in a normal window and in a Tiny window (320×180, which keeps its size).
+
+## 0.14.4 — 27 Nov 2026
+
+- **Launch plan, as designed.** At the top one line says where accounts without their own target go; click it to change it. The accounts are grouped by game. Click a group's header to move all its accounts, or one account to send just that one somewhere else (it keeps that target for later launches; **Use default** takes it back). Accounts with their own server in a game are shown with it; the others follow the group's rule.
+- **Target picker.** Search a game by name, type a Place ID or paste a game link, a Job ID, a private server link or a share link, or type a player's name to follow them. Without typing it lists the current game (any server, and for one account its own private server), recent games, saved servers, and friends in a game (your own accounts in a game join that exact server). An account's own target can now be a player to follow.
+- **Server rule per game**, remembered for each game: **Roblox picks**, **Emptiest server for each**, **Own private server for each** (free ones are made for 0 Robux after you confirm; paid ones are never bought) or **All together** (one server with room for everyone; if none has room, the rest follow the first account). The old "Follow the first" choice is part of All together now.
+- **Delay** is a number field with up and down arrows (also the arrow keys). The plan no longer has an FPS field: each account's FPS limit applies (Account tools or the details card).
+
+## 0.14.3 — 26 Nov 2026
+
+- **A cleaner Accounts page.** One header row holds the page's title with a summary (accounts, running, needing attention), the account filter, the folder menu, **Refresh ▾** (refresh all accounts or all cookies, and auto-refresh idle cookies) and **Add account**. Below it are two cards: the account list (a table: Account, Status, Client, Folder) and, always beside it, the **details card** of the account you clicked last. Its name, username, status and actions stay at the top while the rest scrolls; the eight actions fill one row. The list scrolls below its column headers. The Tiles view, the status filter, the FPS and Last launched columns, the "Own target" tag, the list footer and the ⋯ button on each row are gone (the right-click menu has the row's actions; a link to "needs attention" or "running" now selects those accounts).
+- **Selection toolbar.** Tick accounts or click one and a toolbar rises at the bottom of the list: **Launch**, **Account tools** (quick resource saver, auto-rejoin, refresh cookies, own target, move to folder, copy usernames, and the full tools) and **Delete**. Esc, ✕ or a click on the empty list clears the selection. It steps away while Output is open. After you confirm a delete, the accounts fly into the toolbar's bin before they are removed; if the delete fails they stay selected.
+- **Launch plan.** Launch (and Ctrl+Enter, and **Launch…** in the right-click menu) opens a plan: the launch target, the accounts grouped by where each one goes, Delay and FPS for this launch, then the progress in the same window. Closing it keeps the launch running. At the end it sums up, **Done** closes it after 3 seconds, and **Retry N failed** relaunches just those. The Launch and Account tabs of the side panel became the plan and the details card.
+- CAM's window now opens, and stays, at least 1280 px wide.
+
 ## 0.14.2 — 25 Nov 2026
 
 - **Only the app.** Developer measurement tools that were built into the program (hidden command-line switches) are gone from the installer and from the published source, which now holds just the app itself. Nothing you use changes.

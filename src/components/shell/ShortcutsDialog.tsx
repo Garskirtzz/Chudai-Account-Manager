@@ -28,7 +28,7 @@ const groups = [
     items: [
       { keys: ['↑', '↓'], label: 'Move between accounts' },
       { keys: ['Space'], label: 'Tick or untick the account' },
-      { keys: ['Enter'], label: 'Open the account in the side panel' },
+      { keys: ['Enter'], label: 'Select the account and show its details' },
       { keys: ['Alt', '↑ ↓'], label: 'Move the account up or down (Custom order)' },
       { keys: ['F2'], label: 'Rename the focused folder' },
     ],
@@ -87,7 +87,7 @@ export function ShortcutsDialog() {
           <div className="flex items-start gap-2 rounded-md border border-line-subtle bg-app/40 px-3 py-2.5">
             <MousePointer2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-content-muted" />
             <p className="text-xs leading-relaxed text-content-muted">
-              Panel dividers can be dragged: the navigation, the folder list, the account side panel, the client details and Output.
+              Panel dividers can be dragged: the navigation, the folder list, the client details and Output.
               Their sizes are remembered on this PC.
             </p>
           </div>

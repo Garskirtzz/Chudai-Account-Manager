@@ -1,6 +1,6 @@
 [package]
 name = "ChudaiAccountManager"
-version = "0.14.2"
+version = "0.14.7"
 edition = "2021"
 description = "Chudai Account Manager - pengelola banyak akun Roblox dengan multi-instance"
 

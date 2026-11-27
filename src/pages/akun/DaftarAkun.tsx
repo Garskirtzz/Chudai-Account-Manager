@@ -2,14 +2,13 @@ import { memo, useState, type DragEvent, type KeyboardEvent } from 'react'
 import { ArrowDown, ArrowUp, StarFilled } from '@/components/ikon'
 import type { Akun, Folder } from '@/api/types'
 import type { AccountColumn, AccountSortKey } from '@/types'
-import { waktuRelatif } from '@/api/api'
 import { DND_AKUN, IkonFolder, folderAkun, posisiDrop } from '@/lib/folder'
-import { geserAkun, namaTargetSendiri, segarkan, setFokus, taruhAkun, toggle, useCam } from '@/stores/cam'
+import { geserAkun, segarkan, setFokus, taruhAkun, toggle, useCam } from '@/stores/cam'
 import { statusAkun } from '@/lib/status-akun'
 import { cn } from '@/utils/cn'
 import { Checkbox } from '@/components/ui/Controls'
-import { AvatarAkun, LabelKlien, LencanaStatus, MenuAkun, Username } from '@/components/akun/bagian'
-import { bukaPanel } from './PanelKanan'
+import { AvatarAkun, LabelKlien, LencanaStatus, Username } from '@/components/akun/bagian'
+import { setPilihKlik } from '@/stores/rencanaLuncur'
 
 export interface KolomTampil {
   key: AccountColumn
@@ -47,7 +46,10 @@ function lepasIds(e: DragEvent): string[] {
   }
 }
 
-const lastLaunched = (a: Akun) => waktuRelatif(a.last_launched) ?? 'Never'
+const pilihBaris = (id: string) => {
+  setFokus(id)
+  setPilihKlik(true)
+}
 
 export function TabelAkun({
   akun,
@@ -58,6 +60,7 @@ export function TabelAkun({
   sebagian,
   onSemua,
   padat,
+  onKosong,
   ...b
 }: Bersama & {
   akun: Akun[]
@@ -68,12 +71,13 @@ export function TabelAkun({
   sebagian: boolean
   onSemua: () => void
   padat: boolean
+  onKosong: () => void
 }) {
-  const template = `2.5rem ${kolom.map((k) => k.track).join(' ')} 2.5rem`
+  const template = `2.5rem ${kolom.map((k) => k.track).join(' ')}`
   const idTab = akun.some((a) => a.id === b.fokusId) ? b.fokusId : akun[0]?.id
   return (
-    <div role="grid" aria-label="Accounts" aria-multiselectable="true" aria-rowcount={akun.length} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-      <div role="row" className="sticky top-0 z-10 grid items-center border-b border-line bg-surface-1 px-2 text-xs font-medium text-content-muted" style={{ gridTemplateColumns: template }}>
+    <div role="grid" aria-label="Accounts" aria-multiselectable="true" aria-rowcount={akun.length} className="flex min-h-0 flex-1 flex-col">
+      <div role="row" className="grid shrink-0 items-center border-b border-line bg-surface-1 pl-2 pr-[18px] text-xs font-medium text-content-muted" style={{ gridTemplateColumns: template }}>
         <div role="columnheader" className="flex items-center py-1.5">
           <Checkbox className="h-5 w-5" checked={semua} indeterminate={sebagian} onCheckedChange={onSemua} aria-label="Select all shown accounts" title="Select all (main accounts are left out)" />
         </div>
@@ -85,11 +89,17 @@ export function TabelAkun({
             </button>
           </div>
         ))}
-        <div role="columnheader"><span className="sr-only">Actions</span></div>
       </div>
-      {akun.map((a) => (
-        <BarisAkun key={a.id} a={a} kolom={kolom} template={template} padat={padat} bisaTab={idTab === a.id} {...b} />
-      ))}
+      <div
+        role="rowgroup"
+        data-daftar-gulir
+        className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-[76px] [scrollbar-gutter:stable]"
+        onClick={(e) => { if (!(e.target as HTMLElement).closest('[data-baris]')) onKosong() }}
+      >
+        {akun.map((a) => (
+          <BarisAkun key={a.id} a={a} kolom={kolom} template={template} padat={padat} bisaTab={idTab === a.id} {...b} />
+        ))}
+      </div>
     </div>
   )
 }
@@ -106,7 +116,7 @@ const BarisAkun = memo(function BarisAkun({ a, kolom, template, padat, bisaTab, 
 
   const kunci = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return
-    if (e.key === 'Enter' && !e.repeat) { e.preventDefault(); setFokus(a.id); bukaPanel('akun', { instan: true }) }
+    if (e.key === 'Enter' && !e.repeat) { e.preventDefault(); pilihBaris(a.id) }
     else if (e.key === ' ' && !e.repeat) { e.preventDefault(); toggle(a.id) }
     else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); if (bisaSeret) geserAkun(a.id, e.key === 'ArrowDown' ? 1 : -1) }
     else pindahBaris(e)
@@ -119,8 +129,7 @@ const BarisAkun = memo(function BarisAkun({ a, kolom, template, padat, bisaTab, 
       data-id={a.id}
       tabIndex={bisaTab ? 0 : -1}
       aria-selected={terpilih}
-      onClick={() => setFokus(a.id)}
-      onDoubleClick={() => { setFokus(a.id); bukaPanel('akun') }}
+      onClick={() => pilihBaris(a.id)}
       onKeyDown={kunci}
       draggable
       onDragStart={(e) => {
@@ -165,7 +174,6 @@ const BarisAkun = memo(function BarisAkun({ a, kolom, template, padat, bisaTab, 
                     {a.utama ? <Tag title="Main account: left out of Select all, bulk saver and folder presets">Main</Tag> : null}
                     {a.plus ? <Tag title="Roblox Plus subscription">Plus</Tag> : a.premium ? <Tag title="Roblox Premium (legacy membership)">Premium</Tag> : null}
                     {a.hemat ? <Tag title={`Resource saver: ${a.hemat_fps || 10} FPS, low graphics, low priority`}>Saver</Tag> : null}
-                    {a.target_sendiri ? <Tag title={`Own launch target: ${namaTargetSendiri(a.target_sendiri)}`}>Own target</Tag> : null}
                   </span>
                 </span>
               </div>
@@ -184,10 +192,6 @@ const BarisAkun = memo(function BarisAkun({ a, kolom, template, padat, bisaTab, 
             )
           case 'client':
             return <div role="gridcell" key={k.key} className="min-w-0 px-2 text-sm"><LabelKlien pid={pid} ringkas /></div>
-          case 'lastLaunched':
-            return <div role="gridcell" key={k.key} className="truncate px-2 text-right text-content-muted" title={a.last_launched ? new Date(a.last_launched * 1000).toLocaleString() : undefined}>{lastLaunched(a)}</div>
-          case 'fps':
-            return <div role="gridcell" key={k.key} className="tnum px-2 text-right text-content-secondary" title={a.hemat ? 'Resource saver FPS' : undefined}>{a.hemat ? `${a.hemat_fps || 10}` : a.fps_cap ? a.fps_cap : '—'}</div>
           case 'folder':
             return (
               <div role="gridcell" key={k.key} className="flex min-w-0 items-center gap-1.5 px-2 text-content-secondary">
@@ -199,78 +203,10 @@ const BarisAkun = memo(function BarisAkun({ a, kolom, template, padat, bisaTab, 
             return null
         }
       })}
-      <div role="gridcell" className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
-        <MenuAkun a={a} folder={folder} className="opacity-60 group-hover:opacity-100" onDetail={() => { setFokus(a.id); bukaPanel('akun') }} />
-      </div>
     </div>
   )
 })
 
 function Tag({ children, title }: { children: string; title?: string }) {
   return <span title={title} className="shrink-0 rounded border border-line px-1 text-2xs font-medium leading-4 text-content-secondary">{children}</span>
-}
-
-export function UbinAkun({ akun, ...b }: Bersama & { akun: Akun[] }) {
-  return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-3 p-3" role="list" aria-label="Accounts">
-        {akun.map((a) => <Ubin key={a.id} a={a} {...b} />)}
-      </div>
-    </div>
-  )
-}
-
-function Ubin({ a, folder, dipilih, fokusId, pidAkun }: Bersama & { a: Akun }) {
-  const terpilih = dipilih.includes(a.id)
-  const fokus = fokusId === a.id
-  const pid = pidAkun[a.id]
-  const fAkun = folder.find((f) => f.id === folderAkun(a, folder)) ?? null
-  return (
-    <article
-      role="listitem"
-      data-baris
-      data-id={a.id}
-      tabIndex={0}
-      onClick={() => setFokus(a.id)}
-      onDoubleClick={() => { setFokus(a.id); bukaPanel('akun') }}
-      onKeyDown={(e) => {
-        if (e.target !== e.currentTarget) return
-        if (e.key === 'Enter') { setFokus(a.id); bukaPanel('akun', { instan: true }) }
-        if (e.key === ' ') { e.preventDefault(); toggle(a.id) }
-      }}
-      draggable
-      onDragStart={(e) => e.dataTransfer.setData(DND_AKUN, JSON.stringify(terpilih ? dipilih : [a.id]))}
-      className={cn('group relative flex cursor-default flex-col rounded-lg border bg-surface-1/60 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60', terpilih ? 'border-accent/60 bg-accent/[0.07]' : fokus ? 'border-content-muted/60 bg-surface-2/70' : 'border-line-subtle hover:border-line-strong/70')}
-    >
-      <div className="flex items-start gap-3 p-3">
-        <AvatarAkun a={a} size="lg" berjalan={!!pid?.length} />
-        <div className="min-w-0 flex-1">
-          <p className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-md font-semibold text-content-primary" translate="no" title={a.alias}>{a.alias}</span>
-            {a.favorit ? <StarFilled className="h-3.5 w-3.5 shrink-0 text-warning" aria-label="Favourite" /> : null}
-          </p>
-          <p className="truncate text-xs text-content-muted"><Username a={a} /></p>
-        </div>
-        <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
-          <Checkbox className="h-5 w-5" checked={terpilih} onCheckedChange={() => toggle(a.id)} aria-label={`Select ${a.alias}`} />
-          <MenuAkun a={a} folder={folder} onDetail={() => { setFokus(a.id); bukaPanel('akun') }} />
-        </div>
-      </div>
-      <div className="space-y-1.5 px-3 pb-3 text-sm">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <LencanaStatus a={a} />
-          <span className="text-content-muted/60" aria-hidden>·</span>
-          <LabelKlien pid={pid} />
-        </div>
-        <div className="flex flex-wrap gap-1.5 pt-0.5">
-          <span className="inline-flex items-center gap-1 rounded border border-line-subtle px-1.5 py-0.5 text-xs text-content-secondary"><IkonFolder f={fAkun} size={12} /><span translate={fAkun ? 'no' : undefined}>{fAkun ? fAkun.nama : 'Ungrouped'}</span></span>
-          {a.hemat ? <span className="rounded border border-line-subtle px-1.5 py-0.5 text-xs text-content-secondary">Saver · {a.hemat_fps || 10} FPS</span> : a.fps_cap ? <span className="rounded border border-line-subtle px-1.5 py-0.5 text-xs text-content-secondary">{a.fps_cap} FPS</span> : null}
-          {a.auto_rejoin ? <span className="rounded border border-line-subtle px-1.5 py-0.5 text-xs text-content-secondary">Auto-rejoin</span> : null}
-        </div>
-      </div>
-      <div className="mt-auto flex items-center justify-between gap-2 border-t border-line-subtle/80 px-3 py-2">
-        <span className="truncate text-xs text-content-muted" title="Last launched">{lastLaunched(a)}</span>
-      </div>
-    </article>
-  )
 }

@@ -8,6 +8,7 @@ import { Kbd } from '@/components/ui/Badge'
 import { Brand } from '@/components/shared/Logo'
 import { useLebar, skalaRem } from '@/hooks/useLebar'
 import { PilSesi } from './JudulHalaman'
+import { TombolUpdate } from './TombolUpdate'
 
 export function Header() {
   const navigate = useNavigate()
@@ -46,10 +47,11 @@ export function Header() {
 
   return (
     <header onMouseDown={seret} onDoubleClick={maksimal} className="relative z-40 grid h-[var(--header-h)] shrink-0 select-none grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border-b border-line-subtle bg-chrome">
-      <div className="flex min-w-0 items-center">
+      <div className="flex min-w-0 items-center gap-3">
         <button type="button" onClick={() => navigate('/accounts')} className={cn('flex shrink-0 items-center rounded-md pl-5 text-left transition-opacity', !fokus && 'opacity-60')} aria-label="Chudai Account Manager — go to Accounts">
           <Brand />
         </button>
+        <TombolUpdate />
       </div>
 
       <button

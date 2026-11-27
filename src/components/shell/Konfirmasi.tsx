@@ -10,7 +10,7 @@ export function Konfirmasi() {
   useLayoutEffect(() => {
     if (!k) return
     if (!k.asal) kembali.current = null
-    else if (!k.asal.closest('[role=dialog], [role=alertdialog]')) kembali.current = k.asal
+    else if (k.asal.closest('[data-rencana-luncur]') || !k.asal.closest('[role=dialog], [role=alertdialog]')) kembali.current = k.asal
   }, [k])
   const tutup = () => useCam.setState({ konfirmasi: null })
   const batal = () => {

@@ -1,6 +1,6 @@
 {
   "name": "roblox-account-manager",
-  "version": "0.14.2",
+  "version": "0.14.7",
   "private": true,
   "scripts": {
     "dev": "tauri dev",

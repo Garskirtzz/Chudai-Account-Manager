@@ -1,0 +1,60 @@
+.tombol-github {
+  --gh-isi: rgb(var(--text-primary));
+  --gh-teks: rgb(var(--bg-app));
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 2rem;
+  padding: 0 15px;
+  gap: 15px;
+  background-color: var(--gh-isi);
+  outline: 3px var(--gh-isi) solid;
+  outline-offset: -3px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 400ms, transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.tombol-github .text {
+  color: var(--gh-teks);
+  font-weight: 700;
+  font-size: 1em;
+  transition: color 400ms;
+}
+
+.tombol-github svg path {
+  fill: var(--gh-teks);
+  transition: fill 400ms;
+}
+
+.tombol-github:hover {
+  background-color: transparent;
+}
+
+.tombol-github:hover .text {
+  color: var(--gh-isi);
+}
+
+.tombol-github:hover svg path {
+  fill: var(--gh-isi);
+}
+
+.tombol-github:active {
+  transform: scale(0.97);
+}
+
+.tombol-github:focus-visible {
+  box-shadow: 0 0 0 2px rgb(var(--bg-app)), 0 0 0 4px rgb(var(--accent));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tombol-github,
+  .tombol-github .text,
+  .tombol-github svg path {
+    transition: none;
+  }
+  .tombol-github:active {
+    transform: none;
+  }
+}

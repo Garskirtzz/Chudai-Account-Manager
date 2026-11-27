@@ -22,7 +22,7 @@ function tanggal(ms) {
   }
 }
 
-const BUKA = "Use Open roblox.com in the Account panel to see the details.";
+const BUKA = "Use Open roblox.com in the account details to see them.";
 
 export function statusPembatasan(p, kini = Date.now()) {
   if (!p) return null;

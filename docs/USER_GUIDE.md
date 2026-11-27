@@ -4,8 +4,9 @@ Manage several Roblox accounts and launch them into the same game or server.
 
 ## The window at a glance
 
-- **Navigation** on the left has two parts. The narrow **icon bar** holds the pages (Accounts, Dashboard, Servers, History, Monitor, Client versions, Fast Flags) and, at the bottom, **?** (keyboard shortcuts) and Settings. Next to it, the **sidebar** shows the page's name, a short description and the page's own sections: folders on Accounts, Browse/Saved on Servers, Games/Disconnects on History, Clients/Windows on Monitor, and the categories of Settings. The arrow next to the page name folds the sidebar away (**Ctrl+B**); the page then shows its name and sections in a strip at the top, with a button to unfold the sidebar again. On Accounts the folders become a **folder** menu in the action bar, and Multi-instance, Sign-in protection and Hide usernames become a small pill in the title bar (the icons of the switches that are on; click it to change them). A dot on Settings means a new version is ready in About. On a narrow window the unfolded sidebar slides over the page and folds again when you click outside it.
-- **Accounts** page: the action bar (Launch, Account tools, the account filter, Refresh, Cookies, Add account), the **status tabs** (All accounts, Running, Healthy, Needs attention, Not checked, each with its count), the account list, and the **side panel** on the right with two tabs, **Launch** (launch target and behaviour) and **Account** (details of the account you clicked). The arrow at the panel's top right folds it to a strip of two icons; click an icon to open that tab. When the window is too narrow for the list and the panel side by side, the panel is a drawer over the list that stays closed until you click the launch target next to Launch, press **Enter** or double-click an account, or choose **Details** in its ⋯ menu; **Esc** closes it. Without a Client column, a running account shows **· Running** in its Status, and an account whose cookie was rejected has a **Refresh** button in its row.
+- **Navigation** on the left has two parts. The narrow **icon bar** holds the pages (Accounts, Dashboard, Servers, History, Monitor, Client versions, Fast Flags) and, at the bottom, **?** (keyboard shortcuts) and Settings. Next to it, the **sidebar** shows the page's name, a short description and the page's own sections: folders on Accounts, Browse/Saved on Servers, Games/Disconnects on History, Clients/Windows on Monitor, and the categories of Settings. The arrow next to the page name folds the sidebar away (**Ctrl+B**); the page then shows its name and sections in a strip at the top, with a button to unfold the sidebar again. On Accounts the folders become a **folder** menu in the page's header row, and Multi-instance, Sign-in protection and Hide usernames become a small pill in the title bar (the icons of the switches that are on; click it to change them). A dot on Settings means a new version is ready in About. On a narrow window the unfolded sidebar slides over the page and folds again when you click outside it.
+- **Accounts** page: one header row with the page's title and a summary (how many accounts, how many run, how many need attention), the account **filter** (**Ctrl+F**), the folder menu (when the sidebar is folded), **Refresh ▾** (refresh all accounts, refresh all cookies, auto-refresh idle cookies) and **Add account**. Below it, two cards: the **account list** (Account, Status, Client and Folder columns; columns drop out on narrower windows) and, always beside it, the **details card** of the account you clicked last. The details card keeps the account's name, username, status and its actions (Rename, Refresh data, Refresh cookie, Copy cookie, Open roblox.com, Open profile, FPS limit, Delete) at the top; the rest scrolls under them. Without a Client column, a running account shows **· Running** in its Status, and an account whose cookie was rejected has a **Refresh** button in its row. CAM's window is at least 1280 px wide.
+- **Selection toolbar**: when you tick accounts or click one, a toolbar appears at the bottom of the list with **Launch**, **Account tools** and **Delete**. **Esc**, its **✕** or a click on the empty part of the list clears the selection. While Output is open the toolbar steps away; it comes back when you close Output.
 - The title bar keeps the search box (**Ctrl+K**) in the middle. Running clients and RAM are on the **Monitor** page.
 - **Output** at the bottom: every message the app writes. **Ctrl+J** opens or closes it. Errors also show a badge and a strip above the log.
 - **Ctrl+K** searches accounts, pages and commands from anywhere.
@@ -39,11 +40,11 @@ The cookie is equivalent to a password and bypasses 2FA. It is encrypted with Wi
 Folders keep different kinds of accounts apart, for example a *Farming* folder and a *Boosting* folder. Each account is in one folder, or in *Ungrouped*.
 
 - **Create**: click the **New folder** button at the top of the folder list. Pick a name, a color, and an icon.
-- **Move accounts**: drag an account onto a folder in the folder list. Dragging a ticked account moves every ticked account. Without a mouse: an account's **⋯ → Move to folder**, **Folder** in the account panel, or **Account tools → Folder** for all ticked accounts.
+- **Move accounts**: drag an account onto a folder in the folder list. Dragging a ticked account moves every ticked account. Without a mouse: an account's right-click menu (or **Shift+F10**) **→ Move to folder**, **Folder** in the details card, or the toolbar's **Account tools → Move to folder** for all ticked accounts.
 - **Select or launch a folder**: the folder's checkbox ticks all of its accounts; its **⋯ → Launch folder** launches them.
 - **Show one folder**: click the folder's name. **All accounts** shows everything; **Running** and **Needs attention** show running accounts and accounts that are banned, locked, restricted or signed out. The choice is remembered.
 - **Rename**: double-click the folder name, or press F2. **Reorder**: ⋯ → Move up / Move down. **Delete**: ⋯ → Delete folder; its accounts stay and move to Ungrouped.
-- **Resource saver preset**: ⋯ → Color, icon & saver preset. When it is on, every account in the folder gets those resource saver settings, and so does every account moved in later. You can still change an account on its own; the account panel shows when it differs from its folder and offers **Apply folder preset**.
+- **Resource saver preset**: ⋯ → Color, icon & saver preset. When it is on, every account in the folder gets those resource saver settings, and so does every account moved in later. You can still change an account on its own; the details card shows when it differs from its folder and offers **Apply folder preset**.
 
 ### Order
 
@@ -51,48 +52,58 @@ With the list sorted in your own order (click a column header until the arrow di
 
 ## Focus and selection
 
-- **Click an account** to see its details in the side panel's **Account** tab. This does not change the selection.
-- **Launch this account only** (in an account's **⋯** menu) launches just that account with the current launch target, without touching the ticks.
-- **Tick the checkbox** to select an account. **Launch** and **Account tools** only use ticked accounts.
-- Keyboard: arrow keys move between accounts, Enter shows details, Space ticks.
+- **Click an account** to see it in the details card; it also counts as selected, so the toolbar appears for it. Esc, ✕ or a click on the empty part of the list drops that selection; the details card stays.
+- **Tick the checkbox** to select several accounts. With accounts ticked, the toolbar's **Launch**, **Account tools** and **Delete** act on all of them.
+- **Right-click** an account (or **Shift+F10**) for its menu; **Launch…** there opens the Launch plan for just that account (or for every ticked account when you right-click a ticked one).
+- Keyboard: arrow keys move between accounts, Enter selects the focused one, Space ticks.
 
 ## Launching
 
-1. In the side panel's **Launch** tab, under **Launch target**, pick a **Game**: search by name, type a Place ID, or paste a roblox.com game link.
-2. Optional:
-   - **Job ID** — join one specific public server (pick one on the **Servers** page).
-   - **Private server** — paste a VIP link, a share link, or `accessCode=<code>`.
-   - **Follow player** — join whichever server that player is in. This overrides the game and server fields; their values are kept and come back when you clear it.
-3. Tick accounts and click **Launch** (or press **Ctrl+Enter**). With nothing ticked, Launch starts the account you clicked.
+Select the accounts (tick them, or click one) and press **Launch** on the toolbar (or **Ctrl+Enter**). The **Launch plan** opens:
 
-When several accounts are launched, each one waits until the previous client has joined, plus **Delay (s)**. **Cancel remaining** stops accounts that have not started yet. **Stop waiting** stops waiting for the current join. Neither closes a Roblox client that is already open.
+- At the top, **Accounts without their own target go to** and the launch target. Click it to change it.
+- Below, the accounts grouped by where each goes: no game yet, one group per game, private server links, and players to follow. Click a group's header to move all its accounts, or click one account to send just that one somewhere else (that becomes its own target, also for later launches; **Use default** in the picker clears it).
+- At the bottom, **Delay** (seconds between accounts, when there are two or more): type a number or use the up and down arrows. FPS is not set here: each account's FPS limit applies (Account tools or the details card).
 
-The play button on a row launches only that account.
+Clicking a target opens the **target picker**. Type to search, or pick from the lists:
 
-Everything in **Launch target** is remembered when you close the app, until you clear it.
+- **Any server** in the current game, and for one account its own private server there (an inactive free one is turned on before launch; a new free one can be made for 0 Robux; paid ones are never bought). **Pick a server…** opens the Servers page for that game.
+- **Recent games**, **Saved** servers, and **Friends in a game** (your friends who are playing, and your own accounts that are in a game, which join that exact server).
+- Typing: a game name, a Place ID, or a roblox.com game link picks the game; a Job ID picks a server of the current game; a private server link, share link or `accessCode=<code>` picks that private server; a player name offers **Follow <name>** (join whichever server that player is in).
 
-### Same server, FPS for one launch
+Press **Launch** in the plan (or **Enter**).
 
-**Launch behavior → Same server** puts every ticked account (or a launched folder) in one public server: **Pick one with room for all** finds the fullest server that still fits all of them; **Follow the first account** sends the rest to the server the first account joined. It's ignored when the launch target already names a server (Job ID, private server, Follow player). **FPS limit** applies to that launch only, instead of each account's FPS and the resource saver FPS; auto-rejoin keeps it. Leave it empty to use each account's setting.
+The progress shows in the same window; closing it keeps the launch running, and the toolbar shows **Launching N of M** (click it to open the progress again). When several accounts are launched, each one waits until the previous client has joined, plus **Delay**. **Cancel remaining** stops accounts that have not started yet. **Stop waiting** stops waiting for the current join. Neither closes a Roblox client that is already open. When the launch ends the plan sums it up; **Done** closes it (it also closes by itself after 3 seconds), and **Retry N failed** opens a new plan for the accounts that failed.
 
-After launching several accounts, **Selection** in the Launch tab offers **Select them** for the ones that failed, so you can launch just those again.
+The launch target is remembered when you close the app.
+
+### Server rule per game
+
+Each game group in the plan has a server rule for its accounts that have no specific server, remembered per game:
+
+- **Roblox picks** — Roblox chooses a public server for each account.
+- **Emptiest server for each** — each account gets its own emptiest public server.
+- **Own private server for each** — each account's private server. Free ones are created (0 Robux) after you confirm once; paid ones are never bought, and those accounts are skipped.
+- **All together** — every account in one server with room for all (two or more accounts). If no server has room, the rest follow the first account's server.
+
+Launching a folder from the tray or the folder menu uses the server choice from before.
 
 ### Last server, friends, private servers
 
-The Account tab shows each account's **Last server** (from its Roblox log). **Rejoin** (the arrow) launches the account there after checking the server still exists; private servers can't be rejoined this way. The **people** button next to Follow player lists the account's online friends and your own accounts that are in a game. On the Servers page, **Private** lists the private servers the account can see in the game; **Use** sets one as the launch target.
+The details card shows each account's **Last server** (from its Roblox log). **Rejoin** (the arrow) launches the account there after checking the server still exists; private servers can't be rejoined this way. On the Servers page, **Private** lists the private servers the account can see in the game; **Use** sets one as the launch target.
 
 ## Saved servers
 
 To keep a private server (or a specific server) for later:
 
-1. Fill in **Launch target** — game, private server link, and/or Job ID.
-2. Click the **bookmark** button next to *Launch target*. It turns into a check mark when saved.
+1. Set the launch target in the Launch plan — game, private server link, and/or Job ID.
+2. Click the **bookmark** next to it. It turns into a check mark when saved.
 
-To use it again, open **Saved ▾** in the Launch tab and pick it, or press **Use** in **Saved servers** on the Servers page. The game, Job ID, and private server are filled in at once (Follow player is cleared). Rename or delete entries on the Servers page; deleting needs a second click.
+To use it again, pick it under **Saved** in the target picker, or press **Use** in **Saved servers** on the Servers page. Rename or delete entries on the Servers page; deleting needs a second click.
 
 ## Resource saver (AFK accounts)
 
-For accounts that only sit in a game, turn on **Resource saver** in the Account tab, or use **Account tools → Resource saver → Turn on** for several ticked accounts. From the next launch the account runs at 10 FPS, with low graphics and low process priority. In an earlier test on Violence District against no saver, 10 FPS used about 66% less CPU and 69% less GPU.
+For accounts that only sit in a game, turn on **Resource saver** in the details card, or use **Account tools → Resource saver → Turn on** for several ticked accounts. From the next launch the account runs at 10 FPS, with low graphics and low process priority. In an earlier test on Violence District against no saver, 10 FPS used about 66% less CPU and 69% less GPU.
 
 **Account tools** also has two one-click profiles for the ticked accounts; main accounts are left out. **Balanced AFK** is 10 FPS with a 512 MB RAM limit. **Deep AFK** is 3 FPS with a 256 MB RAM limit, for accounts you only leave idle. Measured separately on one game while idle in a lobby: 3 FPS used about 68% less GPU than 10 FPS, and a 256 MB limit used about 216 MB less physical RAM than 512 MB. Both profiles apply from the next launch.
 
@@ -102,7 +113,7 @@ For accounts that only sit in a game, turn on **Resource saver** in the Account 
 
 **Monitor** shows whether each running client's limits are in place (Limits column). **Limits applied** means the RAM limit and low priority were set and are still holding. **Not fully applied** means one failed or was lost; hover over it for details. FPS and graphics can only be shown as requested, because Windows doesn't report them.
 
-In **Account tools**, choose the **FPS** and **RAM** limit before clicking **Turn on**; they default to 10 FPS and 512 MB. For one account, change them in the Account tab (**Saver FPS**, **RAM limit**). While resource saver is on, its FPS replaces the account's FPS limit; turning resource saver off brings the FPS limit back.
+In **Account tools**, choose the **FPS** and **RAM** limit before clicking **Turn on**; they default to 10 FPS and 512 MB. For one account, change them in the details card (**Saver FPS**, **RAM limit**). While resource saver is on, its FPS replaces the account's FPS limit; turning resource saver off brings the FPS limit back.
 
 Optional extras per account:
 
@@ -116,7 +127,7 @@ If Roblox restarts a client in another installed version (it does this during so
 
 ## Auto-rejoin
 
-For accounts that must stay in a game, turn on **Auto-rejoin** in the Account tab, or use **Account tools → Auto-rejoin → Turn on** for several ticked accounts. It can also be part of a folder's preset.
+For accounts that must stay in a game, turn on **Auto-rejoin** in the details card, or use **Account tools → Auto-rejoin → Turn on** for several ticked accounts. It can also be part of a folder's preset.
 
 When the account's client is disconnected by Roblox (kicked, server shut down, connection lost), closes unexpectedly, or stops responding for about a minute, CAM closes what is left of it and launches the account again into the same game, through the normal launch path, so resource saver, sign-in protection and the account check apply again. Output says what happened and when it rejoined.
 
@@ -134,12 +145,12 @@ When the account's client is disconnected by Roblox (kicked, server shut down, c
 
 ## Anti-AFK
 
-Roblox disconnects a player after 20 minutes without input (error 278). Turn on **Anti-AFK** in the Account tab, or **Account tools → Anti-AFK → Turn on** for several accounts; it can also be part of a folder's preset.
+Roblox disconnects a player after 20 minutes without input (error 278). Turn on **Anti-AFK** in the details card, or **Account tools → Anti-AFK → Turn on** for several accounts; it can also be part of a folder's preset.
 
 While you're away from the PC (no keyboard or mouse input for 5 seconds), each of those clients that is in a game is brought to the front for a moment, gets one real **F13** key press (no game uses F13, so the character doesn't move), and the window you had in front gets the focus back. A minimized client is restored for the press and minimized again. The interval is set in Account tools (default every 15 minutes, for all accounts).
 
 - It waits while you use the PC, and stops a round as soon as you touch the keyboard or mouse.
-- It never runs while a full-screen app, full-screen game or presentation is running, so it doesn't take the focus from your own game.
+- It never runs while a full-screen app, full-screen game or presentation is running, so it doesn't take the focus from your own game. A client that has Anti-AFK on doesn't count when it is the one in full screen (F11): anti-AFK keeps it active too, and other clients with Anti-AFK on still get their press (the focus comes back to the full-screen one). A Roblox game you're playing in full screen with an account that doesn't have Anti-AFK on does count, so it isn't interrupted.
 - A client that isn't responding is skipped. If a client is still kicked for idling, auto-rejoin (if on) brings it back.
 
 ## FPS limit
@@ -150,7 +161,7 @@ While you're away from the PC (no keyboard or mouse input for 5 seconds), each o
 
 **Monitor → Windows** lists the open Roblox windows with the account they belong to. **Tiny** (the shrink button) makes one smaller than Roblox's 800×600 minimum, at the **Tiny size** you pick (320×180 to 640×360); **Normal size** puts it back where and how big it was. **Tile tiny** does that for every client and lines them up. **Minimize all** and **Restore all** do what they say; tiny windows stay tiny after a restore, and also when you drag them by the title bar. Dragging a tiny window's *edge* still snaps it to Roblox's minimum: pick a size here instead. **Tile** and **Cascade** arrange normal-size windows; **Move…** places one window exactly.
 
-A smaller window draws much less at high frame rates (measured at 2048×1080 with no FPS limit: GPU 25.7% full size, 5.7% at 320×180, 0% minimized). The saving on top of resource saver's low FPS hasn't been measured yet. **Start tiny** (Account tab, or a folder's preset) makes an account's client tiny right after it joins, also after an auto-rejoin.
+A smaller window draws much less at high frame rates (measured at 2048×1080 with no FPS limit: GPU 25.7% full size, 5.7% at 320×180, 0% minimized). The saving on top of resource saver's low FPS hasn't been measured yet. **Start tiny** (details card, or a folder's preset) makes an account's client tiny right after it joins, also after an auto-rejoin.
 
 Point at a window's **eye** button to see a live preview of it. A minimized client draws nothing, so it has no preview.
 
@@ -166,7 +177,7 @@ Point at a window's **eye** button to see a live preview of it. A minimized clie
 
 ## Launch arguments
 
-Client versions → **Launch arguments** are added after the launch link for every account that has none of its own. An account's own arguments are in the Account tab (leave the field empty to use the default). With arguments, CAM starts RobloxPlayerBeta.exe directly, because the roblox-player: link can't carry them; with Automatic selected that is the newest installed version. Quotes and `& | < > ^` are refused.
+Client versions → **Launch arguments** are added after the launch link for every account that has none of its own. An account's own arguments are in the details card (leave the field empty to use the default). With arguments, CAM starts RobloxPlayerBeta.exe directly, because the roblox-player: link can't carry them; with Automatic selected that is the newest installed version. Quotes and `& | < > ^` are refused.
 
 ## Folder profiles
 
@@ -222,7 +233,7 @@ All Roblox clients on a PC share one sign-in file. Without protection, every lau
 
 ## Main account and Full quality
 
-In the Account tab, **Main account** leaves an account out of Select all, bulk resource saver and folder presets. **Full quality** stops folder presets from lowering that account's FPS, graphics, RAM limit or window size. Either way you can still select the account yourself or change its settings by hand.
+In the details card, **Main account** leaves an account out of Select all, bulk resource saver and folder presets. **Full quality** stops folder presets from lowering that account's FPS, graphics, RAM limit or window size. Either way you can still select the account yourself or change its settings by hand.
 
 ## Network connections
 
@@ -237,13 +248,17 @@ CAM talks to roblox.com services and Roblox's download CDN, and to GitHub when i
 
 **Settings → Backup → Back up accounts…** saves one `.cambak` file protected by a password you choose (at least 8 characters): every account with its cookie, folders with their presets, and saved servers. The accounts file itself only opens on this PC and Windows user; the backup opens anywhere with its password, so keep both safe — anyone with the file and the password can sign in to the accounts, and a forgotten password can't be recovered. **Restore from backup…** adds the accounts you don't have. For accounts you already have, choose **Keep mine** or **Replace with the backup**; a replacement only happens when the backup's cookie still signs in as that account. Folders are matched by name and created when missing.
 
+**GitHub** in Settings → About opens this app's page on GitHub in your browser.
+
 **Settings → About → Diagnostics → Copy diagnostics** copies a report to the clipboard (or **Save to file…**): Windows and graphics driver versions, crashes, blue screens and graphics resets from the last 7 days, and this app's state. It only reads, and contains no cookies, account names or your Windows user name. Paste it into your bug report.
 
 ## Updates
 
 Chudai Account Manager checks for a new version once, a few seconds after it opens, and Output says so when one is available. **Settings → About → Updates** shows the new version and its notes; **Install update** downloads it, checks its digital signature (an altered or fake installer is refused), installs it, and reopens the app. Your accounts and settings are kept.
 
-Install update is disabled while Roblox clients are running: installing closes this app, which would also close them. Close the clients first.
+While a new version is available, a round **download button** sits next to the Chudai logo at the top. One click does the same as Install update, without opening About: its ring fills as the update downloads, then the app installs it and reopens. The button goes away once there is nothing to update. **Check now** in About updates it too.
+
+Install update (and the download button) is refused while Roblox clients are running: installing closes this app, which would also close them. Close the clients first.
 
 Updates work for the copy installed with the setup program. A loose copy of the .exe (for example one copied to the desktop) cannot update itself; install with the setup program once.
 
@@ -259,7 +274,7 @@ Updates work for the copy installed with the setup program. A loose copy of the 
 
 ## Roblox website as an account
 
-In the Account tab, the **globe** button opens roblox.com signed in as the focused account; the button next to it opens the account's profile. Each account gets its own private window that keeps nothing after it closes. Log out is blocked in that window, because logging out on roblox.com ends the session CAM stores for the account; to stop using an account, delete it in CAM instead. The window only goes to roblox.com (and the Apple/Google sign-in pages), and Play buttons do nothing: launch games from CAM.
+In the details card, the **globe** button opens roblox.com signed in as the focused account; the button next to it opens the account's profile. Each account gets its own private window that keeps nothing after it closes. Log out is blocked in that window, because logging out on roblox.com ends the session CAM stores for the account; to stop using an account, delete it in CAM instead. The window only goes to roblox.com (and the Apple/Google sign-in pages), and Play buttons do nothing: launch games from CAM.
 
 ## Cookie refresh
 
